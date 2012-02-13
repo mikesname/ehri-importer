@@ -8,6 +8,8 @@ venv_path = os.path.abspath(os.path.join(PROJECT_ROOT, "../../../"))
 activate_this = os.path.join(venv_path, "bin/activate_this.py")
 execfile(activate_this, dict(__file__=activate_this))
 
+sys.stderr.write("WSGI Python Path (Importer): %s\n" % sys.path)
+
 os.environ['DJANGO_SETTINGS_MODULE'] = 'ehriimporter.settings'
 
 import django.core.handlers.wsgi
