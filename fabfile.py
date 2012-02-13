@@ -32,13 +32,14 @@ def setup():
     require('hosts', provided_by=[local])
     require('path')
     sudo('yum install -y python-setuptools')
+    sudo('yum-builddep -y python26-mysqldb')
     sudo('easy_install pip')
     sudo('pip install virtualenv')
 
     run('mkdir -p %(path)s' % env)
     with cd(env.path):
         run('virtualenv --python=python2.6 .')
-        run('mkdir -p releases shared packages site_media/media site_media/static')
+        run('mkdir -p releases shared packages %(project_name)/media %(project_name)/static' % env)
         put("%(project_name)s/production_settings.py.sample" % env,
                 "shared/production_settings.py") 
     deploy()
@@ -55,7 +56,6 @@ def deploy():
     install_requirements()
     symlink_current_release()
     activate_production_settings()
-    migrate()
     collectstatic()
     restart_webserver()
 
@@ -93,10 +93,12 @@ def upload_tar_from_git():
 def install_requirements():
     "Install the required packages from the requirements file using pip"
     require("path", "project_name")
-    with virtualenv():
-        with cd(env.path):
-            run('pip install -E . -r ./releases/%s/%s/requirements/project.txt' % (
-                env.release, env.project_name))
+    # hack to fix a git problem
+    with prefix("export GIT_SSL_NO_VERIFY=true"):
+        with virtualenv():
+            with cd(env.path):
+                run('pip install -E . -r ./releases/%s/%s/requirements/project.txt' % (
+                    env.release, env.project_name))
 
 def symlink_current_release():
     "Symlink our current release"
@@ -115,13 +117,6 @@ def activate_production_settings():
                 "shared/production_settings.py") 
         run("cp shared/production_settings.py releases/%(release)s/%(project_name)s/production_settings.py" % env)
 
-
-def migrate():
-    "Update the database"
-    with virtualenv():
-        with cd("%(path)s/releases/%(release)s/%(project_name)s" % env):
-            run('python manage.py syncdb --noinput')
-            run('python manage.py migrate')
 
 def collectstatic():
     "Save static files to serve location."
