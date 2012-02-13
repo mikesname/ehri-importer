@@ -1,0 +1,2 @@
+Trivial Django project for importing spreadsheet data into ICA-Atom
+using the sqlaqubit library.
