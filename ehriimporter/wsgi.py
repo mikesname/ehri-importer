@@ -1,18 +1,7 @@
-import os
-import sys
+import os, sys
+sys.path.append('/usr/local/django')
+os.environ['DJANGO_SETTINGS_MODULE'] = 'ehriimporter.settings'
 
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, PROJECT_ROOT)
-sys.path.insert(0, os.path.abspath(os.path.join(PROJECT_ROOT, "../../../lib/python2.6/site-packages")))
+import django.core.handlers.wsgi
 
-
-from django.core.handlers.wsgi import WSGIHandler
-
-import pinax.env
-
-# setup the environment for Django and Pinax
-pinax.env.setup_environ(__file__)
-
-
-# set application for WSGI processing
-application = WSGIHandler()
+application = django.core.handlers.wsgi.WSGIHandler()
