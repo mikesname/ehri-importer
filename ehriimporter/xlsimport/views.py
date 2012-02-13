@@ -27,6 +27,7 @@ def validate(request):
         if not form.is_valid():
             context = dict(form=form)
             return render(request, template, context)
+        name = request.FILES["xlsfile"].name
         temppath = save_to_temp(request.FILES["xlsfile"])
         validator = getattr(xls, form.cleaned_data["xlstype"])(temppath)
         try:
@@ -36,7 +37,8 @@ def validate(request):
         os.unlink(temppath)
 
         # form is good, so render the report template
-        context = dict(form=form, errors=validator.errors)
+        context = dict(form=form, errors=validator.errors,
+                name=name, validator=validator)
         return render(request, template, context)
 
 
