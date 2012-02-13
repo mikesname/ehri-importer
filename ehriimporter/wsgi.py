@@ -2,6 +2,7 @@ import os, sys
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, os.path.abspath(os.path.join(PROJECT_ROOT, "..")))
 
 venv_path = os.path.abspath(os.path.join(PROJECT_ROOT, "../../../"))
 activate_this = os.path.join(venv_path, "bin/activate_this.py")
