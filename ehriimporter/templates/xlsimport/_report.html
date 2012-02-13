@@ -1,20 +1,27 @@
-<div class="alert alert-error">
-    <strong>Oh shoot!</strong>
-    There were problems with that spreadsheet.
-</div>
-<table class="table table-striped table-bordered">
-    <thead>
+{% if errors %}
+    <div class="alert alert-error">
+        <strong>Oh shoot!</strong>
+        There were problems with that spreadsheet.
+    </div>
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Line</th>
+                <th>Error description</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row, error, _ in errors %}
         <tr>
-            <th>Line</th>
-            <th>Error description</th>
+            <td class="line-number">{{row|rjust:5}}</td>
+            <td>{{error}}</td>
         </tr>
-    </thead>
-    <tbody>
-    {% for row, error, _ in errors %}
-    <tr>
-        <td class="line-number">{{row|rjust:5}}</td>
-        <td>{{error}}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
+        {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <div class="alert alert-success">
+        <strong>Super!</strong>
+        Everything was A-OK with that spreadsheet.  At least we think so...
+    </div>
+{% endif %}
