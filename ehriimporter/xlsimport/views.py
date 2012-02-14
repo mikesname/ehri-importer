@@ -18,7 +18,6 @@ def save_to_temp(f):
     return temp.name
 
 
-
 def validate(request):
     """Validate an XLS."""
     template = "xlsimport/validate.html"
@@ -33,5 +32,14 @@ def validate(request):
             validator.validate(temppath)
             os.unlink(temppath)
             context.update(errors=validator.errors, validator=validator)
+    return render(request, template, context)
+
+
+def help(request):
+    """Show help about import spreadsheet format."""
+    importers = [getattr(xls, attr) for attr in dir(xls) \
+            if hasattr(getattr(xls, attr), "name")]
+    template = "xlsimport/help.html"
+    context = dict(importers=importers)
     return render(request, template, context)
 
