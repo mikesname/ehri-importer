@@ -1,0 +1,67 @@
+{% extends "site_base.html" %}
+
+{% block body %}
+
+    <h2>Spreadsheet import help</h2>
+    <p>
+        EHRI spreadsheets must have a very specific format to be imported into the ICA-AtoM database.  Headings must
+        conform to expected values, some columns must contain unique values, and only certain columns can contain
+        multiple values in the double-comma-separated format.
+    </p>
+
+    <h3 id="header-help">Headers</h3>
+    <p>
+        Each spreadsheet must have a row of headers at the top.  Each header must be named exactly as specified (usually
+        to match database field names.  The headers must be on a specific row.
+    </p>
+
+    <h3 id="multiple-help">Multiple-value Cells</h3>
+    <p>
+        Some cells, such as those containing <code>parallel_forms_of_name</code>, can hold multiple values.  Each value
+        must be separated by two commas (&quot;,,&quot;).
+    </p>
+    <h3 id="unique-help">Unique columns</h3>
+    <p>
+        Some columns, such as <code>authorized_form_of_name</code> on the Repository import spreadsheet, must contain
+        unique values.  This is to ensure no duplicate institutions are imported, and to make sure we can tell them
+        apart.
+    </p>
+    <h3 id="vocab-help">Controlled Vocabularies (Country names, etc)</h3>
+    <p>
+        Certain fields (country, language, scripts etc) are stored in the database as ISO codes.  We therefore have to
+        look these up from the &quot;normal&quot; name when we import the data.  For country codes, we use <a
+            href="http://en.wikipedia.org/wiki/ISO_3166-1">ISO-3166-1</a> list, so check there if it complains about not recognising
+        your values.
+    </p>
+
+    <h2>Validation Rules</h2>
+
+    {% for importer in importers %}
+        <h3 id="{{importer.name.lower}}">{{importer.name}}</h3>
+        <h4>Header row: <code>{{importer.HEADING_ROW|add:1}}</code></h4>
+
+        <h4>Columns Headings</h4>
+        <dl>
+            {% for header in importer.HEADINGS %}
+            <dd>{{header}}</dd>
+            {% endfor %}
+        </dl>
+
+        <h4>Multi-value Columns</h4>
+        <dl>
+            {% for header in importer.MULTIPLES %}
+            <dd>{{header}}</dd>
+            {% endfor %}
+        </dl>
+
+        <h4>Unique Columns</h4>
+        <dl>
+            {% for header in importer.UNIQUES %}
+            <dd>{{header}}</dd>
+            {% endfor %}
+        </dl>
+
+        <hr />    
+    {% endfor %}
+
+{% endblock %}
