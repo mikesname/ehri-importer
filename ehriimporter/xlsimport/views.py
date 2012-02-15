@@ -22,7 +22,7 @@ def validate(request):
     """Validate an XLS."""
     template = "xlsimport/validate.html"
     form = forms.XLSForm()
-    context = dict(form=form)
+    context = dict()
     if request.method == "POST":
         form = forms.XLSForm(request.POST, request.FILES)
         if form.is_valid():
@@ -31,7 +31,8 @@ def validate(request):
             validator = getattr(xls, form.cleaned_data["xlstype"])()
             validator.validate(temppath)
             os.unlink(temppath)
-            context.update(form=form, errors=validator.errors, validator=validator)
+            context.update(errors=validator.errors, validator=validator)
+    context.update(form=form)
     return render(request, template, context)
 
 

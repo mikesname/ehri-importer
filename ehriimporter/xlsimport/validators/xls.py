@@ -4,6 +4,7 @@ import re
 import datetime
 import logging as LOG
 from ordereddict import OrderedDict
+from dateutil import parser
 
 import phpserialize
 import xlrd
@@ -30,6 +31,7 @@ class XLSValidator(object):
     # Fields that contain multiple values separated
     # by two commas (yep, it's gross): 
     MULTIPLES = []
+    DATES = []
 
     def __init__(self, raise_err=False):
         self.workbook = None
@@ -94,6 +96,7 @@ class XLSValidator(object):
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
         self.check_multiples(rownum, rowdata)
+        self.check_dates(rownum, rowdata)
 
     def check_unique_columns(self):
         """Check columns which should contain unique values
@@ -117,7 +120,6 @@ class XLSValidator(object):
                             rows[0], "Duplicate on unique column: %s: '%s' %s" % (
                                 header, key, [r+1 for r in rows[1:]]))
 
-
     def check_multiples(self, rownum, rowdata):
         """Check fields that only allow single entries don't
         contain multiple ones."""
@@ -126,6 +128,20 @@ class XLSValidator(object):
             if len(multi) > 1 and key not in self.MULTIPLES:
                 self.add_error(rownum, 
                         "Double-comma separator in a strictly single-value field: '%s'" % key)
+
+    def check_dates(self, rownum, rowdata):
+        """Check dates are in YYYY-MM-DD format.  A preceding 'c' for
+        'circa' is allowed to indicate inexactness."""
+        for field in self.DATES:
+            for datestr in [ds for ds in rowdata[field].split(",,") if ds.strip() != ""]:
+                if datestr.startswith("c"):
+                    datestr = datestr[1:]
+                try:
+                    parser.parse(datestr, yearfirst=True)
+                except ValueError:
+                    self.add_error(rownum, "Bad date string in field: '%s': %s" % (
+                            datestr, field))
+
 
 
 class XLSRepositoryValidator(XLSValidator):
@@ -179,6 +195,13 @@ class XLSRepositoryValidator(XLSValidator):
         "telephone",
         "fax",
         "sources",
+        "language",
+        "script",
+        "language_of_description",
+        "script_of_description",
+    ]
+    DATES = [
+        "dates_of_existence",
     ]
 
     def check_countrycode(self, rownum, rowdata):
@@ -246,10 +269,13 @@ class XLSCollectionValidator(XLSValidator):
         "language_of_description",
         "script_of_description",
     ]
+    DATES = [
+        "dates",
+        "dates_of_administration",
+    ]
 
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
         super(XLSCollectionValidator, self).validate_row(rownum, rowdata)
-
 
 
