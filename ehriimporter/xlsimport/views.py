@@ -31,7 +31,7 @@ def validate(request):
             validator = getattr(xls, form.cleaned_data["xlstype"])()
             validator.validate(temppath)
             os.unlink(temppath)
-            context.update(errors=validator.errors, validator=validator)
+            context.update(form=form, errors=validator.errors, validator=validator)
     return render(request, template, context)
 
 
