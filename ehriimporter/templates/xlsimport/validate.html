@@ -2,11 +2,7 @@
 
 {% load i18n %}
 
-{% block nav %}    
-    <ul class="nav">{% spaceless %}
-        <li class="active" id="tab_xls"><a href="{% url xls_validate %}">{% trans "Excel" %}</a></li>
-    {% endspaceless %}</ul>
-{% endblock %}
+{% block body_class %}xls_import{% endblock %}
 
 {% block body %}
     <form method="post" class="well" enctype="multipart/form-data">
