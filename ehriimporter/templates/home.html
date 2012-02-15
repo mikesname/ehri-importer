@@ -2,17 +2,12 @@
 
 {% load i18n %}
 
-{% block nav %}    
-    <ul class="nav">{% spaceless %}
-        <li id="tab_xls"><a href="{% url xls_validate %}">{% trans "Excel" %}</a></li>
-    {% endspaceless %}</ul>
-{% endblock %}
-
 {% block body %}
 
     <h3>There's not much here yet!</h3>
     <ul >
         <li><a href="{% url xls_validate %}">Validate spreadsheets</a></li>
+        <li><a href="{% url xls_help %}">Read the documentation</a></li>
     </ul>
 
 {% endblock %}
