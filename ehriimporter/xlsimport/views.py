@@ -7,7 +7,7 @@ from django.shortcuts import render
 
 from xlsimport import forms
 
-from sqlaqubit.validators import xls
+from validators import xls
 
 
 def save_to_temp(f):
