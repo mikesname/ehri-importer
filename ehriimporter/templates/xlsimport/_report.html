@@ -13,7 +13,7 @@
         <tbody>
         {% for row, error, _ in errors %}
         <tr>
-            <td class="line-number">{{row|rjust:5}}</td>
+            <td class="line-number">{{row|add:1|rjust:5}}</td>
             <td>{{error}}</td>
         </tr>
         {% endfor %}
