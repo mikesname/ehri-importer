@@ -33,6 +33,26 @@ def slugify(value):
     return SLUGIFY_HYPHENATE_RE.sub('-', value)
 
 
+REPO_I18N = [
+        u'authorized_form_of_name',
+        u'history',
+        u'geocultural_context',
+        u'collecting_policies',
+        u'holdings',
+        u'finding_aids',
+        u'research_services',
+        u'desc_institution_identifier',
+        u'institution_responsible_identifier',
+        u'rules',
+        u'status',
+]
+
+CONTACT_I18N = [
+        u'contact_type',
+        u'city',
+        u'region',
+]
+
 class XLSRepositoryImporter(xls.XLSRepositoryValidator):
     """Import repository information."""
 
@@ -122,12 +142,11 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator):
         )
         self.session.add(repo)
         revision = "Imported from EHRI spreadsheet at: %s" % self.timestamp
-        repo.set_i18n(dict(
-            authorized_form_of_name=rowdata["authorized_form_of_name"],
-            desc_sources="\n".join(rowdata["sources"].split(",,")),
-            desc_rules="ISDIAH",
-            desc_revision_history=revision
-        ), lang)
+        i18ndict = dict((k, v) for k, v in rowdata.iteritems() \
+                if k in REPO_I18N)
+        i18ndict.update(desc_revision_history=revision, desc_rules="ISDIAH",
+                desc_sources="\n".join(rowdata["sources"].split(",,")))
+        repo.set_i18n(i18ndict, lang)
 
         repo.slug.append(models.Slug(
             slug=self.unique_slug(models.Slug, name) 
