@@ -9,7 +9,7 @@ from dateutil import parser
 import phpserialize
 import xlrd
 
-from sqlaqubit import utils
+from xlsimport import utils
 
 
 class XLSError(Exception):
