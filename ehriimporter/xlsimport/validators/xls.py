@@ -148,7 +148,6 @@ class XLSValidator(object):
                             datestr, field))
 
 
-
 class XLSRepositoryValidator(XLSValidator):
     """Validator for Repository import."""
     name = "Repositories"
@@ -194,7 +193,6 @@ class XLSRepositoryValidator(XLSValidator):
     MULTIPLES = [
         "parallel_forms_of_name",
         "other_names",
-        "street_address",
         "email",
         "website",
         "telephone",
