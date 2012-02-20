@@ -1,13 +1,14 @@
 ---
 
-heading_row: 1
+heading_row: 1  # 0-Based
 fields: 
-    - institution_identifier:
+    - repository_code:
          required: true
     - identifier:
          unique: true
     - title:
-         unique: true
+        unique: true
+        i18n: true
     - other_forms_of_title:
          multiple: true
     - dates:
@@ -16,31 +17,43 @@ fields:
     - level_of_description:
          default: Collection
     - extent_and_medium:
+        i18n: true
     - creator:
     - repository:
     - scope_and_content:
+        i18n: true
+    - archival_history:
+        i18n: true
     - language:
          multiple: true
     - script:
          multiple: true
     - finding_aids:
+        i18n: true
     - location_of_originals:
+        i18n: true
     - location_of_copies:
+        i18n: true
     - publication_note:
     - notes:
     - subject_access:
+        i18n: true
     - place_access:
+        i18n: true
     - name_access:
+        i18n: true
     - rules:
     - dates_of_administration:
          multiple: true
          date: true
     - description_identifier:
-         default: EHRI
+        i18n: true
+        default: EHRI
     - institution_identifier:
-         default: EHRI
+        i18n: true
+        default: EHRI
     - status:
-         default: draft
+        default: draft
     - detail:
          default: partial
     - language_of_description:

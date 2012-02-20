@@ -1,4 +1,4 @@
----
+--- # Field mappings for spreadsheet -> Qubit
 
 heading_row: 1
 fields:
@@ -7,6 +7,7 @@ fields:
     - authorized_form_of_name:
         required: true
         unique: true
+        i18n: true
     - other_forms_of_name:
         multiple: true
     - parallel_forms_of_name:
@@ -14,8 +15,8 @@ fields:
     - entity_type:
     - street_address:
     - postal_code:
-    - city:
-    - region:
+    - city:      # I18N field in qubit
+    - region:    # I18N field in qubit
     - country:
         required: true
         validate: true
@@ -31,15 +32,25 @@ fields:
     - primary_contact:
     - contact_type:
     - history:
+        i18n: true
     - geocultural_context:
+        i18n: true
     - collecting_policies:
+        i18n: true
     - holdings:
+        i18n: true
     - finding_aids:
+        i18n: true
     - research_services:
+        i18n: true
     - desc_institution_identifier:
+        i18n: true
     - institution_responsible_identifier:
+        i18n: true
     - rules:
+        i18n: true
     - status:
+        i18n: true
     - dates_of_existence:
         multiple: true
         date: true

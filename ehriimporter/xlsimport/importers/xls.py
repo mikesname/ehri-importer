@@ -7,6 +7,7 @@ import phpserialize
 import unicodedata
 from sqlaqubit import models, keys, create_engine, init_models
 from sqlalchemy.engine.url import URL
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import and_
 
 from xlsimport.validators import xls
@@ -33,25 +34,15 @@ def slugify(value):
     return SLUGIFY_HYPHENATE_RE.sub('-', value)
 
 
-REPO_I18N = [
-        u'authorized_form_of_name',
-        u'history',
-        u'geocultural_context',
-        u'collecting_policies',
-        u'holdings',
-        u'finding_aids',
-        u'research_services',
-        u'desc_institution_identifier',
-        u'institution_responsible_identifier',
-        u'rules',
-        u'status',
-]
-
 CONTACT_I18N = [
         u'contact_type',
         u'city',
         u'region',
 ]
+
+
+class XLSImportError(Exception):
+    """Something went wrong with the import."""
 
 
 class XLSImporter(object):
@@ -92,9 +83,11 @@ class XLSImporter(object):
 
         # running count of slugs used so far in the import transaction
         self.slugs = {}
+        self.ids = {}
 
     def unique_slug(self, model, value):
-        """Get a slug not currently used in the DB."""
+        """Get a slug not currently used in the DB. FIXME: This
+        is not an atomic operation."""
         suffix = 0
         potential = base = slugify(value)
         while True:
@@ -107,11 +100,21 @@ class XLSImporter(object):
             # we hit a conflicting slug, so bump the suffix & try again
             suffix += 1
 
+    def unique_identifier(self, model, prefix, suffix):
+        """Get an id based on an incremented index of the
+        object count for the given model.  FIXME: Not very safe 
+        or atomic."""
+        id = self.session.query(models.Object)\
+                .order_by("id DESC").limit(1).one().id
+        return u"%s%d%s" % (prefix, id + 1, suffix)
+
     def import_xls(self, xlsfile):
         """Actually import the file."""
         for row in range(self.HEADING_ROW+1, self.sheet.nrows):
             data = [d.value for d in self.sheet.row_slice(row, 0, len(self.HEADINGS))]
-            self.import_row(row, OrderedDict(zip(self.HEADINGS, data)))
+            obj = self.import_row(row, OrderedDict(zip(self.HEADINGS, data)))
+            if self.rowfunc:
+                self.rowfunc(obj)
 
         self.session.commit()
         if self.donefunc:
@@ -135,6 +138,14 @@ class XLSImporter(object):
         """Abstract implementation."""
         pass
 
+    def add_property(self, item, record, recordname, propname, lang="en"):
+        """Add a property to the object."""
+        items = record[recordname].split(",,")        
+        prop = models.Property(name=propname, source_culture=lang)
+        item.properties.append(prop)
+        prop.set_i18n(dict(value=phpserialize.dumps(items)), lang)
+
+
 
 class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
     """Import repository information."""
@@ -144,10 +155,10 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         self.parent = self.session.query(models.Actor)\
                 .filter(models.Actor.id==keys.ActorKeys.ROOT_ID).one()
 
-    def import_row(self, rownum, rowdata, lang="en"):
+    def import_row(self, rownum, record, lang="en"):
         """Import a single repository."""
-        code = utils.get_code_from_country(rowdata["country"].strip())
-        name = rowdata["authorized_form_of_name"]
+        code = utils.get_code_from_country(record["country"].strip())
+        name = record["authorized_form_of_name"]
         # FIXME: wrong lang, etc
         repo = models.Repository(
             identifier="repo%06d%s" % (rownum, code),
@@ -161,10 +172,10 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         )
         self.session.add(repo)
         revision = "Imported from EHRI spreadsheet at: %s" % self.timestamp
-        i18ndict = dict((k, v) for k, v in rowdata.iteritems() \
-                if k in REPO_I18N)
+        i18ndict = dict((k, v) for k, v in record.iteritems() \
+                if k in self.I18N)
         i18ndict.update(desc_revision_history=revision, desc_rules="ISDIAH",
-                desc_sources="\n".join(rowdata["sources"].split(",,")))
+                desc_sources="\n".join(record["sources"].split(",,")))
         repo.set_i18n(i18ndict, lang)
 
         # add a slug
@@ -173,7 +184,7 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         ))
 
         # add a note
-        if rowdata["notes"].strip():
+        if record["notes"].strip():
             comment = models.Note(
                     object_id=repo.id,
                     type_id=keys.TermKeys.MAINTENANCE_NOTE_ID,
@@ -183,7 +194,7 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
             )
             repo.notes.append(comment)
             comment.set_i18n(dict(
-                    content=rowdata["notes"],
+                    content=record["notes"],
             ), lang)
         # add other & parallel names, with the correct Term ID.
         altnamedict = dict(
@@ -191,7 +202,7 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
                 other_names=keys.TermKeys.OTHER_FORM_OF_NAME_ID
         )
         for field, termid in altnamedict.iteritems():
-            for name in [on for on in rowdata[field].split(",,") \
+            for name in [on for on in record[field].split(",,") \
                         if on.strip() != ""]:
                 othername = models.OtherName(
                         type_id=termid,
@@ -202,20 +213,14 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
                     name=name
                 ), lang)
 
-        self.add_addresses(repo, rowdata, code, lang)
+        self.add_addresses(repo, record, code, lang)
 
-        # add a bunch of properties
-        langprop = models.Property(name="language", source_culture=lang)
-        repo.properties.append(langprop)
-        langprop.set_i18n(dict(value=phpserialize.dumps([lang])), lang)
-        scriptprop = models.Property(name="script", source_culture=lang)
-        repo.properties.append(scriptprop)
-        scriptprop.set_i18n(dict(value=phpserialize.dumps(["Latn"])), lang)
+        propdict = dict(language="language", script="script")
+        for name, prop in propdict.iteritems():
+            self.add_property(repo, record, name, prop, lang)
+        return repo
 
-        if self.rowfunc:
-            self.rowfunc(repo)
-
-    def add_addresses(self, repo, data, countrycode, lang):
+    def add_addresses(self, repo, record, countrycode, lang):
         """Add addresses.  These are all multiple fields because
         institutions could potentially have more than one address,
         although in practise it's likely to be just email/phone that
@@ -231,7 +236,7 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         contact_i18n = ["contact_type", "city", "region"]
         contacts = []
         for field in contact_fields:
-            multival = data.get(field, "")
+            multival = record.get(field, "")
             fieldvals = [c for c in cleanfloat(multival).split(",,") if c != ""]
             for i in range(len(fieldvals)):                
                 if i + 1 > len(contacts):
@@ -245,13 +250,13 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
                     country_code=countrycode)
             addcontact = models.ContactInformation(**contact)
             repo.contacts.append(addcontact)
-            # only set i18n data for the first contact
+            # only set i18n record for the first contact
             if i > 0:
                 break
             addcontact.set_i18n(dict(
-                    contact_type=data["contact_type"],
-                    city=data["city"],
-                    region=data["region"],
+                    contact_type=record["contact_type"],
+                    city=record["city"],
+                    region=record["region"],
                     note="Import from EHRI contact spreadsheet"
             ), lang)
 
@@ -275,41 +280,44 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
                     .LEVEL_OF_DESCRIPTION_ID)\
                 .join(models.TermI18N, models.Term.id == models.TermI18N.id)\
                 .filter(models.TermI18N.name == "Collection").one()
+        self.pubstatus = self.session.query(models.Term)\
+                .filter(models.Term.taxonomy_id == keys.TaxonomyKeys\
+                    .PUBLICATION_STATUS_ID)\
+                .join(models.TermI18N, models.Term.id == models.TermI18N.id)\
+                .filter(models.TermI18N.name == "published").one()
 
     def import_row(self, rownum, record, lang="en"):
         """Import a single collection."""
-        repoid = record["repository_identifier"]
+        repoid = record["repository_code"]
 
         # get the repo and let it error if not found
-        repo = self.session.query(models.Repository)\
-                .filter(models.Repository.identifier==repoid)\
-                .one()
+        try:
+            repo = self.session.query(models.Repository)\
+                    .filter(models.Repository.identifier==repoid)\
+                    .one()
+        except NoResultFound:
+            raise XLSImportError("Unable to find repository with identifier: %s" % (
+                repoid))
 
+        identifier = self.unique_identifier(models.InformationObject,
+                "coll", repo.contacts[0].country_code)
         info = models.InformationObject(
-            identifier=record["identifier"],
+            identifier=identifier,
             source_culture=lang,
             parent=self.parent,
-            repository=self.repo,
-            level_of_description=lod,
+            repository_id=repo.id,
+            level_of_description=self.lod_coll,
             description_status_id=self.status.id,
             description_detail_id=self.detail.id,
             source_standard="ISAD(G) 2nd Edition"
         )
         self.session.add(info)
         revision = "%s: Imported from AIM25" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        info.set_i18n(dict(
-            title=record["full_title"],
-            extent_and_medium=record["extent"],
-            acquisition=record["source_of_acquisition"],
-            arrangement=record["arrangement"],
-            access_conditions=record["access_cond"],
-            reproduction_conditions=record["reprod_cond"],
-            scope_and_content=record["scope_content"],
-            finding_aids=record["finding_aids"],
-            location_of_copies=record["held_at"],
-            rules=record["rules_conventions"],
-            revision_history=record["admin_biog_hist"]
-        ), lang)
+        i18ndict = dict((k, v) for k, v in record.iteritems() \
+                if k in self.I18N)
+        i18ndict.update(desc_revision_history=revision, desc_rules="ISAD(G)",
+                desc_sources="\n".join(record["sources"].split(",,")))
+        info.set_i18n(i18ndict, lang)
 
         info.slug.append(models.Slug(
             slug=self.unique_slug(models.Slug, record["title"]) 
@@ -339,27 +347,21 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
                     content=record["publication_note"],
             ), lang)
 
-        event = self.parse_date(record["dates"], info, lang)
-        if event:
-            info.events.append(event)
+        #event = self.parse_date(record["dates"], info, lang)
+        #if event:
+        #    info.events.append(event)
 
         status = models.Status(object=info, 
                 type_id=self.pubtype.id, status_id=self.pubstatus.id)
         self.session.add(status)
 
-        languages = self.get_languages(record["language"])        
-        langprop = models.Property(name="language", source_culture=lang)
-        info.properties.append(langprop)
-        langprop.set_i18n(dict(value=phpserialize.dumps([lang])), lang)
-        scriptprop = models.Property(name="script", source_culture=lang)
-        info.properties.append(scriptprop)
-        scriptprop.set_i18n(dict(value=phpserialize.dumps(["Latn"])), lang)
-        langdescprop = models.Property(name="languageOfDescription", source_culture=lang)
-        info.properties.append(langdescprop)
-        langdescprop.set_i18n(dict(value=phpserialize.dumps([lang])), lang)
-        scriptdescprop = models.Property(name="scriptOfDescription", source_culture=lang)
-        info.properties.append(scriptdescprop)
-        scriptdescprop.set_i18n(dict(value=phpserialize.dumps(["Latn"])), lang)
-
-
+        propdict = dict(
+                language="language",
+                script="script",
+                language_of_description="languageOfDescription",
+                script_of_description="scriptOfDescription"
+        )
+        for name, prop in propdict.iteritems():
+            self.add_property(info, record, name, prop, lang)
+        return info
 

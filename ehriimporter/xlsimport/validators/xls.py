@@ -22,18 +22,21 @@ ERROR_CODES = {
         u"bad_xls": u"Unable to open XLS file.",
         u"worksheet_not_found": u"Data worksheet must be the first sheet in the workbook.",
         u"unexpected_heading": u"Unexpected headings on worksheet",
+        u"missing_heading": u"Heading not found on worksheet",
 }
 
 
 class XLSField(object):
     def __init__(self, name, unique=False, multiple=False,
-            default=None, required=False, isdate=False, validate=False):
+            default=None, required=False, isdate=False,
+            validate=False, i18n=False):
         self.name = name
         self.unique = unique
         self.multiple = multiple
         self.default = default
         self.required = False
         self.isdate = False
+        self.i18n = i18n
         self.validate = False
 
     def __unicode__(self):
@@ -46,7 +49,7 @@ class XLSSheetDefinition(object):
         self.fields = fields if fields is not None else []
 
     def load_yaml(self, filepath):
-        self.fields = []        
+        self.fields = OrderedDict()
         with open(filepath, "r") as fp:
             data = yaml.load(fp)
             self.heading_row = data.get("heading_row", self.heading_row)
@@ -60,22 +63,26 @@ class XLSSheetDefinition(object):
                         field.default = fdef.get("default", field.default)
                         field.isdate = fdef.get("date", field.isdate)
                         field.validate = fdef.get("validate", field.validate)
-                    self.fields.append(field)
+                        field.i18n = fdef.get("i18n", field.i18n)
+                    self.fields[name] = field
 
     def names(self):
-        return [f.name for f in self.fields]
+        return self.fields.keys()
     
     def unique(self):
-        return [f for f in self.fields if f.unique]
+        return [f for f in self.fields.values() if f.unique]
 
     def multiple(self):
-        return [f for f in self.fields if f.multiple]
+        return [f for f in self.fields.values() if f.multiple]
+
+    def i18n(self):
+        return [f for f in self.fields.values() if f.i18n]
 
     def required(self):
-        return [f for f in self.fields if f.required]
+        return [f for f in self.fields.values() if f.required]
 
     def date(self):
-        return [f for f in self.fields if f.isdate]
+        return [f for f in self.fields.values() if f.isdate]
 
 
 class XLSValidator(object):
@@ -99,7 +106,7 @@ class XLSValidator(object):
 
     @property
     def HEADINGS(self):
-        return [f.name for f in self.fielddef.fields]
+        return self.fielddef.names()
 
     @property
     def UNIQUES(self):
@@ -110,8 +117,16 @@ class XLSValidator(object):
         return [f.name for f in self.fielddef.multiple()]
 
     @property
+    def REQUIRED(self):
+        return [f.name for f in self.fielddef.required()]
+
+    @property
     def DATES(self):
         return [f.name for f in self.fielddef.date()]
+
+    @property
+    def I18N(self):
+        return [f.name for f in self.fielddef.i18n()]
 
     def open_xls(self, xlsfile):
         self.workbook = xlrd.open_workbook(xlsfile, formatting_info=True)
@@ -150,6 +165,12 @@ class XLSValidator(object):
         if len(diffs) > 0:
             for diff in diffs:
                 self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
+            raise XLSError(err)        
+        diffs = set(self.HEADINGS).difference(heads)
+        err = ERROR_CODES["missing_heading"]
+        if len(diffs) > 0:
+            for diff in diffs:
+                self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
             raise XLSError(err)
 
     def validate(self, xlspath):
@@ -162,6 +183,7 @@ class XLSValidator(object):
         except Exception:
             return
         self.check_unique_columns()
+        self.check_required_columns()
         for row in range(self.HEADING_ROW+1, self.sheet.nrows):
             data = [d.value for d in self.sheet.row_slice(row, 0, len(self.HEADINGS))]
             self.validate_row(row, OrderedDict(zip(self.HEADINGS, data)))
@@ -170,6 +192,19 @@ class XLSValidator(object):
         """Check a single row of data."""
         self.check_multiples(rownum, rowdata)
         self.check_dates(rownum, rowdata)
+
+    def check_required_columns(self):
+        """Make sure there are no blanks where there shouldn't
+        be."""
+        for colhead in self.REQUIRED:
+            col = self.HEADINGS.index(colhead)
+            rowsdata = [(i + self.HEADING_ROW, c.value) for i, c in \
+                    enumerate(self.sheet.col_slice(
+                        col, self.HEADING_ROW, self.sheet.nrows))]
+            for i, data in rowsdata:
+                if data is None or data.strip() == "":
+                    self.add_error(i, "Missing value on required column: %s" % (
+                        colhead))
 
     def check_unique_columns(self):
         """Check columns which should contain unique values
