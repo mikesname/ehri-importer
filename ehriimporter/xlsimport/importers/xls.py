@@ -323,29 +323,26 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
             slug=self.unique_slug(models.Slug, record["title"]) 
         ))
 
-        if record["archivist_note"].strip():
-            comment = models.Note(
-                    type_id=keys.TermKeys.ARCHIVIST_NOTE_ID,
-                    user=self.user,
-                    source_culture=lang,
-                    scope="InformationObject"
-            )
-            info.notes.append(comment)
-            comment.set_i18n(dict(
-                    content=record["archivist_note"],
-            ), lang)
-
-        if record["publication_note"].strip():
-            extra = models.Note(
-                    type_id=keys.TermKeys.PUBLICATION_NOTE_ID,
-                    user=self.user,
-                    source_culture=lang,
-                    scope="InformationObject"
-            )
-            info.notes.append(extra)
-            extra.set_i18n(dict(
-                    content=record["publication_note"],
-            ), lang)
+        # add various types of note...
+        notedict = dict(
+                notes=keys.TermKeys.MAINTENANCE_NOTE_ID,
+                archivist_note=keys.TermKeys.ARCHIVIST_NOTE_ID,
+                publication_note=keys.TermKeys.PUBLICATION_NOTE_ID
+        )
+        for notename, typekey in notedict.iteritems():
+            if record[notename]:
+                print "Adding %s: %s" % (notename, record[notename])
+                note = models.Note(
+                        object_id=info.id,
+                        type_id=typekey,
+                        user=self.user,
+                        source_culture=lang,
+                        scope="InformationObject"
+                )
+                info.notes.append(note)
+                note.set_i18n(dict(
+                        content=record[notename],
+                ), lang)
 
         #event = self.parse_date(record["dates"], info, lang)
         #if event:
