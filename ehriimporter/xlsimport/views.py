@@ -38,8 +38,7 @@ def validate(request):
 
 def help(request):
     """Show help about import spreadsheet format."""
-    importers = [getattr(xls, attr) for attr in dir(xls) \
-            if hasattr(getattr(xls, attr), "name")]
+    importers = xls.VALIDATORS
     template = "xlsimport/help.html"
     context = dict(importers=importers)
     return render(request, template, context)

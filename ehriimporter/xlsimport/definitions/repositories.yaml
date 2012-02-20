@@ -1,0 +1,55 @@
+---
+
+heading_row: 1
+fields:
+    - identifier:
+        unique: true    
+    - authorized_form_of_name:
+        required: true
+        unique: true
+    - other_forms_of_name:
+        multiple: true
+    - parallel_forms_of_name:
+        multiple: true
+    - entity_type:
+    - street_address:
+    - postal_code:
+    - city:
+    - region:
+    - country:
+        required: true
+        validate: true
+    - telephone:
+        multiple: true
+    - fax:
+        multiple: true
+    - email:
+        multiple: true
+    - website:
+        multiple: true
+    - contact_person:
+    - primary_contact:
+    - contact_type:
+    - history:
+    - geocultural_context:
+    - collecting_policies:
+    - holdings:
+    - finding_aids:
+    - research_services:
+    - desc_institution_identifier:
+    - institution_responsible_identifier:
+    - rules:
+    - status:
+    - dates_of_existence:
+        multiple: true
+        date: true
+    - language_of_description:
+        multiple: true
+        default: [en]
+    - script_of_description:
+        multiple: true
+        default: [Latn]
+    - sources:
+        multiple: true
+    - priority:
+    - notes:

@@ -1,0 +1,57 @@
+---
+
+heading_row: 1
+fields: 
+    - institution_identifier:
+         required: true
+    - identifier:
+         unique: true
+    - title:
+         unique: true
+    - other_forms_of_title:
+         multiple: true
+    - dates:
+         multiple: true
+         date: true
+    - level_of_description:
+         default: Collection
+    - extent_and_medium:
+    - creator:
+    - repository:
+    - scope_and_content:
+    - language:
+         multiple: true
+    - script:
+         multiple: true
+    - finding_aids:
+    - location_of_originals:
+    - location_of_copies:
+    - publication_note:
+    - notes:
+    - subject_access:
+    - place_access:
+    - name_access:
+    - rules:
+    - dates_of_administration:
+         multiple: true
+         date: true
+    - description_identifier:
+         default: EHRI
+    - institution_identifier:
+         default: EHRI
+    - status:
+         default: draft
+    - detail:
+         default: partial
+    - language_of_description:
+         multiple: true
+         default: [en]
+    - script_of_description:
+         multiple: true
+         default: [Latn]
+    - sources:
+         multiple: true
+    - archivist_note:
+    - ehri_scope:
+    - ehri_priorty:
+    - ehri_copyright:

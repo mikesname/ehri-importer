@@ -61,12 +61,12 @@
                 <th>Date format</th>
                 <th>Unique</th>
             </tr>
-            {% for header in importer.HEADINGS %}
+            {% for header in importer.fielddef.fields %}
             <tr>
                 <td>{{header}}</td>
-                <td>{% if header in importer.MULTIPLES %}&#10003;{% endif %}</td>
-                <td>{% if header in importer.DATES %}&#10003;{% endif %}</td>
-                <td>{% if header in importer.UNIQUES %}&#10003;{% endif %}</td>
+                <td>{% if header.multiple %}&#10003;{% endif %}</td>
+                <td>{% if header.isdate %}&#10003;{% endif %}</td>
+                <td>{% if header.unique %}&#10003;{% endif %}</td>
             </tr>
             {% endfor %}
         </table>

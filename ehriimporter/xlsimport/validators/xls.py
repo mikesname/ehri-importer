@@ -1,5 +1,6 @@
 """Class for validating an ISDIAH .xls file."""
 
+import os
 import re
 import datetime
 import logging as LOG
@@ -8,6 +9,7 @@ from dateutil import parser
 
 import phpserialize
 import xlrd
+import yaml
 
 from xlsimport import utils
 
@@ -23,22 +25,93 @@ ERROR_CODES = {
 }
 
 
+class XLSField(object):
+    def __init__(self, name, unique=False, multiple=False,
+            default=None, required=False, isdate=False, validate=False):
+        self.name = name
+        self.unique = unique
+        self.multiple = multiple
+        self.default = default
+        self.required = False
+        self.isdate = False
+        self.validate = False
+
+    def __unicode__(self):
+        return self.name
+
+
+class XLSSheetDefinition(object):
+    def __init__(self, heading_row=0, fields=None):
+        self.heading_row = heading_row
+        self.fields = fields if fields is not None else []
+
+    def load_yaml(self, filepath):
+        self.fields = []        
+        with open(filepath, "r") as fp:
+            data = yaml.load(fp)
+            self.heading_row = data.get("heading_row", self.heading_row)
+            for fielddef in data.get("fields", []):
+                for name, fdef in fielddef.iteritems():
+                    field = XLSField(name)
+                    if fdef is not None:
+                        field.unique = fdef.get("unique", field.unique)
+                        field.multiple = fdef.get("multiple", field.multiple)
+                        field.required = fdef.get("required", field.required)
+                        field.default = fdef.get("default", field.default)
+                        field.isdate = fdef.get("date", field.isdate)
+                        field.validate = fdef.get("validate", field.validate)
+                    self.fields.append(field)
+
+    def names(self):
+        return [f.name for f in self.fields]
+    
+    def unique(self):
+        return [f for f in self.fields if f.unique]
+
+    def multiple(self):
+        return [f for f in self.fields if f.multiple]
+
+    def required(self):
+        return [f for f in self.fields if f.required]
+
+    def date(self):
+        return [f for f in self.fields if f.isdate]
+
 
 class XLSValidator(object):
-    HEADING_ROW = 0
-    HEADINGS = []
-    UNIQUES = []
-    # Fields that contain multiple values separated
-    # by two commas (yep, it's gross): 
-    MULTIPLES = []
-    DATES = []
-
-    def __init__(self, raise_err=False):
+    def __init__(self, definitions=None, raise_err=False):
         self.workbook = None
         self.sheet = None
+        self.fielddef = XLSSheetDefinition()
+        if definitions is not None:
+            defpath = os.path.abspath(
+                    os.path.join(
+                        os.path.dirname(__file__),                        
+                        os.path.pardir, "definitions", definitions))
+            self.fielddef.load_yaml(defpath)
         
         self.raise_err = raise_err
         self.errors = []
+
+    @property
+    def HEADING_ROW(self):
+        return self.fielddef.heading_row
+
+    @property
+    def HEADINGS(self):
+        return [f.name for f in self.fielddef.fields]
+
+    @property
+    def UNIQUES(self):
+        return [f.name for f in self.fielddef.unique()]
+
+    @property
+    def MULTIPLES(self):
+        return [f.name for f in self.fielddef.multiple()]
+
+    @property
+    def DATES(self):
+        return [f.name for f in self.fielddef.date()]
 
     def open_xls(self, xlsfile):
         self.workbook = xlrd.open_workbook(xlsfile, formatting_info=True)
@@ -109,6 +182,9 @@ class XLSValidator(object):
             datarows = OrderedDict()
             for i, key in rowsdata:
                 item = datarows.get(key)
+                # don't count empty fields
+                if key is None or key == "":
+                    continue
                 if item is None:
                     datarows[key] = [i]
                 else:
@@ -151,61 +227,10 @@ class XLSValidator(object):
 class XLSRepositoryValidator(XLSValidator):
     """Validator for Repository import."""
     name = "Repositories"
-    HEADING_ROW = 1 # Zero-based
-    HEADINGS = [
-        u'identifier',
-        u'authorized_form_of_name',
-        u'parallel_forms_of_name',
-        u'other_names',
-        u'entity_type',
-        u'street_address',
-        u'postal_code',
-        u'city',
-        u'region',
-        u'country',
-        u'telephone',
-        u'fax',
-        u'email',
-        u'website',
-        u'contact_person',
-        u'primary_contact',
-        u'contact_type',
-        u'history',
-        u'geocultural_context',
-        u'collecting_policies',
-        u'holdings',
-        u'finding_aids',
-        u'research_services',
-        u'desc_institution_identifier',
-        u'institution_responsible_identifier',
-        u'rules',
-        u'status',
-        u'dates_of_existence',
-        u'language_of_description',
-        u'script_of_description',
-        u'sources',
-        u'priority',
-        u'notes'
-    ]
-    UNIQUES = [
-        "authorized_form_of_name",
-    ]
-    MULTIPLES = [
-        "parallel_forms_of_name",
-        "other_names",
-        "email",
-        "website",
-        "telephone",
-        "fax",
-        "sources",
-        "language",
-        "script",
-        "language_of_description",
-        "script_of_description",
-    ]
-    DATES = [
-        "dates_of_existence",
-    ]
+
+    def __init__(self, *args, **kwargs):
+        kwargs["definitions"] = kwargs.get("definitions", "repositories.yaml")
+        super(XLSRepositoryValidator, self).__init__(*args, **kwargs)
 
     def check_countrycode(self, rownum, rowdata):
         """Check we can lookup the country code."""
@@ -219,7 +244,7 @@ class XLSRepositoryValidator(XLSValidator):
         super(XLSRepositoryValidator, self).validate_row(rownum, rowdata)
         self.check_countrycode(rownum, rowdata)
         self.check_name_length(rownum, rowdata["authorized_form_of_name"])
-        for field in ["parallel_forms_of_name", "other_names"]:
+        for field in ["parallel_forms_of_name", "other_forms_of_name"]:
             for title in [at for at in rowdata[field].split(",,") \
                     if at.strip() != ""]:
                 self.check_name_length(rownum, "%s (other form)" % title)
@@ -228,59 +253,10 @@ class XLSRepositoryValidator(XLSValidator):
 class XLSCollectionValidator(XLSValidator):
     """Validator for Collection import."""    
     name = "Collections"
-    HEADING_ROW = 1 # Zero-based
-    HEADINGS = [
-        u'institution_identifier',
-        u'identifier',
-        u'title',
-        u'other_forms_of_title',
-        u'dates',
-        u'level_of_description',
-        u'extent_and_medium',
-        u'creator',
-        u'repository',
-        u'scope_and_content',
-        u'language',
-        u'script',
-        u'finding_aids',
-        u'location_of_originals',
-        u'location_of_copies',
-        u'publication_note',
-        u'notes',
-        u'subject_access',
-        u'place_access',
-        u'name_access',
-        u'rules',
-        u'dates_of_administration',
-        u'description_identifier',
-        u'institution_identifier',
-        u'status',
-        u'detail',
-        u'language_of_description',
-        u'script_of_description',
-        u'sources',
-        u'archivist_note',
-        u'ehri_scope',
-        u'ehri_priorty',
-        u'ehri_copyright',
-    ]
-    UNIQUES = [
-        "identifier",
-    ]
-    MULTIPLES = [
-        "other_forms_of_title",
-        "sources",
-        "dates",
-        "dates_of_administration",
-        "language",
-        "script",
-        "language_of_description",
-        "script_of_description",
-    ]
-    DATES = [
-        "dates",
-        "dates_of_administration",
-    ]
+    
+    def __init__(self, *args, **kwargs):
+        kwargs["definitions"] = kwargs.get("definitions", "collections.yaml")
+        super(XLSCollectionValidator, self).__init__(*args, **kwargs)
 
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
@@ -290,4 +266,6 @@ class XLSCollectionValidator(XLSValidator):
                 if at.strip() != ""]:
             self.check_name_length(rownum, "%s (other form)" % title)
 
+
+VALIDATORS = [XLSRepositoryValidator, XLSCollectionValidator]
 

@@ -1,5 +1,5 @@
 """
-Post Repos to a Solr engine.
+Import repository information from a spreadsheet.
 """
 
 from optparse import make_option

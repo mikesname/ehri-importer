@@ -1,0 +1,23 @@
+"""
+Validate repository information from a spreadsheet.
+"""
+
+from django.core.management.base import BaseCommand, CommandError
+
+from xlsimport.validators import xls
+
+class Command(BaseCommand):
+    """Import repositories from ICA Atom."""
+    args = "<XLS file>"
+    def handle(self, *args, **options):
+        """Perform import."""
+        if not args:
+            raise CommandError("No XLS file given.")
+
+        validator = xls.XLSRepositoryValidator()
+        validator.validate(args[0])
+        if validator.errors:
+            for err in validator.errors:
+                self.stderr.write("Line %-6d : %s\n" % err[0:2])
+
+
