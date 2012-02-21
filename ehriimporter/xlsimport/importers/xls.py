@@ -2,6 +2,7 @@
 
 import re
 import datetime
+from dateutil import parser
 from incf.countryutils import data as countrydata
 import phpserialize
 import unicodedata
@@ -32,13 +33,6 @@ def slugify(value):
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
     value = unicode(SLUGIFY_STRIP_RE.sub('', value).strip().lower())
     return SLUGIFY_HYPHENATE_RE.sub('-', value)
-
-
-CONTACT_I18N = [
-        u'contact_type',
-        u'city',
-        u'region',
-]
 
 
 class XLSImportError(Exception):
@@ -85,7 +79,16 @@ class XLSImporter(object):
         self.slugs = {}
         self.ids = {}
 
-    def unique_slug(self, model, value):
+    def random_slug(self):
+        """Get a completely random 6-letter slug (for things
+        like Event objects - don't blame me for this.)"""
+        while True:
+            potential = utils.get_random_string(6)
+            if not self.session.query(models.Slug)\
+                    .filter(models.Slug.slug == potential).count():
+                return potential
+
+    def unique_slug(self, value):
         """Get a slug not currently used in the DB. FIXME: This
         is not an atomic operation."""
         suffix = 0
@@ -93,8 +96,9 @@ class XLSImporter(object):
         while True:
             if suffix:
                 potential = "-".join([base, str(suffix)])
-            if not self.session.query(model).filter(model.slug == potential).count()\
-                    and self.slugs.get(potential) is None:
+            if not self.session.query(models.Slug)\
+                    .filter(models.Slug.slug == potential).count()\
+                        and self.slugs.get(potential) is None:
                 self.slugs[potential] = True
                 return potential
             # we hit a conflicting slug, so bump the suffix & try again
@@ -168,6 +172,21 @@ class XLSImporter(object):
                 name=name
             ), lang)
 
+    def add_date(self, datestr, item, typeid, lang="en"):
+        """Add a date as an event object."""
+        if datestr.startswith("c"):
+            datestr = datestr[1:]
+        # rely on the validator to check this doesn't explode
+        date = parser.parse(datestr, yearfirst=True)
+        event = models.Event(start_date=str(date), end_date=str(date),
+                type_id=typeid,
+                information_object_id=item.id,
+                source_culture=lang)
+        item.events.append(event)
+        # add a random slug for the event (this is really wrong
+        # but it's how qubit works...
+        event.slug.append(models.Slug(slug=self.random_slug()))            
+
     def add_property(self, item, record, recordname, propname, lang="en"):
         """Add a property to the object."""
         items = record[recordname].split(",,")        
@@ -211,9 +230,7 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         repo.set_i18n(i18ndict, lang)
 
         # add a slug
-        repo.slug.append(models.Slug(
-            slug=self.unique_slug(models.Slug, name) 
-        ))
+        repo.slug.append(models.Slug(slug=self.unique_slug(name)))
 
         # add a note
         self.add_note(repo, record, "notes", 
@@ -249,9 +266,8 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
                 return unicode(int(f))
             return f
 
-        contact_fields = ["contact_person", "street_address", "postal_code",
-                "email", "telephone", "fax", "website"]
-        contact_i18n = ["contact_type", "city", "region"]
+        contact_fields = list(set(self.CONTACTS).difference(self.I18N))
+        contact_i18n = list(set(self.CONTACTS).intersection(self.I18N))
         contacts = []
         for field in contact_fields:
             multival = record.get(field, "")
@@ -263,9 +279,9 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
 
         for i in range(len(contacts)):
             contact = contacts[i]
-            contact.update(source_culture=lang,
-                    primary_contact=i==0,
-                    country_code=countrycode)
+            contact.update(source_culture=lang)
+            if i == 0:
+                contact.update(primary_contact=True, country_code=countrycode)
             addcontact = models.ContactInformation(**contact)
             repo.contacts.append(addcontact)
             # only set i18n record for the first contact
@@ -302,7 +318,7 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
                 .filter(models.Term.taxonomy_id == keys.TaxonomyKeys\
                     .PUBLICATION_STATUS_ID)\
                 .join(models.TermI18N, models.Term.id == models.TermI18N.id)\
-                .filter(models.TermI18N.name == "published").one()
+                .filter(models.TermI18N.name == "draft").one()
 
     def import_row(self, rownum, record, lang="en"):
         """Import a single collection."""
@@ -337,9 +353,8 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
                 desc_sources="\n".join(record["sources"].split(",,")))
         info.set_i18n(i18ndict, lang)
 
-        info.slug.append(models.Slug(
-            slug=self.unique_slug(models.Slug, record["title"]) 
-        ))
+        # add a slug
+        info.slug.append(models.Slug(slug=self.unique_slug(record["title"])))
 
         # add various types of note...
         notedict = dict(
@@ -352,10 +367,13 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
 
         self.add_alt_names(info, record, "other_forms_of_title", 
                 keys.TermKeys.OTHER_FORM_OF_NAME_ID, lang)
-        #event = self.parse_date(record["dates"], info, lang)
-        #if event:
-        #    info.events.append(event)
 
+        # TODO: Work out a way on encoding date ranges in Excel
+        for field in self.DATES:
+            for datestr in [ds for ds in record[field].split(",,") if ds.strip() != ""]:
+                self.add_date(datestr, info, keys.TermKeys.CREATION_ID, lang)
+
+        # add a publication status ID
         status = models.Status(object=info, 
                 type_id=self.pubtype.id, status_id=self.pubstatus.id)
         self.session.add(status)

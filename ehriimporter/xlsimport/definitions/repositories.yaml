@@ -17,23 +17,37 @@ fields:
         type: char
     - entity_type:
     - street_address:
+        type: contact
     - postal_code:
+        type: contact
     - city:      # I18N field in qubit
+        type: contact
+        i18n: true
     - region:    # I18N field in qubit
+        type: contact
+        i18n: true
     - country:
         required: true
         validate: true        
     - telephone:
+        type: contact
         multiple: true
     - fax:
+        type: contact
         multiple: true
     - email:
+        type: contact
         multiple: true
     - website:
+        type: contact
         multiple: true
     - contact_person:
+        type: contact
     - primary_contact:
+        type: contact
     - contact_type:
+        type: contact
+        i18n: true
     - history:
         i18n: true
     - geocultural_context:

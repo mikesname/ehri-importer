@@ -42,6 +42,8 @@ class XLSField(object):
     def __unicode__(self):
         return self.name
 
+    def __repr__(self):
+        return "<XLSField: '%s'>" % self.name
 
 class XLSSheetDefinition(object):
     def __init__(self, heading_row=0, fields=None):
@@ -125,6 +127,10 @@ class XLSValidator(object):
     @property
     def CHARS(self):
         return [f.name for f in self.fielddef.oftype("char")]
+
+    @property
+    def CONTACTS(self):
+        return [f.name for f in self.fielddef.oftype("contact")]
 
     @property
     def I18N(self):

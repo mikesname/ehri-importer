@@ -2,6 +2,8 @@
 Common function and data for Qubit interoperability.
 """
 
+import string
+import random
 from incf.countryutils import transformations, data as countrydata
 
 def get_country_from_code(code):
@@ -19,6 +21,11 @@ def get_code_from_country(name):
     if ccn is None:
         return # should raise an error with sheet context
     return countrydata.ccn_to_cca2.get(ccn)
+
+
+def get_random_string(length):
+    return ''.join(random.choice(string.ascii_lowercase + string.digits) \
+                for x in range(6)) 
 
 
 # Hacky dictionary of official country/languages names

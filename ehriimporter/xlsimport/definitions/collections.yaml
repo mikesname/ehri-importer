@@ -11,7 +11,7 @@ fields:
         i18n: true
         type: char
     - other_forms_of_title:
-         multiple: true
+        multiple: true
         type: char
     - dates:
          multiple: true
