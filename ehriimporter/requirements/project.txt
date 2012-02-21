@@ -1,4 +1,7 @@
 --requirement=base.txt
 
+celery
+django-celery
+
 # Should just need the SQLAlchemy-Qubit adapter lib
 -e git+https://github.com/mikesname/sqlalchemy-qubit.git@master#egg=sqlaqubit

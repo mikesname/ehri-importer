@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import os.path
+import os
+import sys
 import posixpath
+
+sys.path.append(os.getcwd())
+
+# initialize Celery
+import djcelery
+djcelery.setup_loader()
+
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 
@@ -119,6 +127,8 @@ INSTALLED_APPS = (
     # 'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
+
+    "djcelery",
 
     "xlsimport",
 )

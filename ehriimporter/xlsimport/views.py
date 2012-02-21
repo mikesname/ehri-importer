@@ -5,9 +5,10 @@ import tempfile
 
 from django.shortcuts import render
 
-from xlsimport import forms
-
+from xlsimport import forms, tasks
 from validators import xls
+from importers import xls as xlsi
+
 
 
 def save_to_temp(f):
@@ -34,6 +35,24 @@ def validate(request):
             context.update(errors=validator.errors, validator=validator)
     context.update(form=form)
     return render(request, template, context)
+
+
+def importxls(request):
+    """Import an XLS."""
+    template = "xlsimport/import.html"
+    form = forms.XLSImportForm()
+    context = dict()
+    if request.method == "POST":
+        form = forms.XLSImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            name = request.FILES["xlsfile"].name
+            temppath = save_to_temp(request.FILES["xlsfile"])
+            result = tasks.import_xls.delay(temppath, "mike")
+            print "RESULT: %s" % result
+            context.update(result=result)
+    context.update(form=form)
+    return render(request, template, context)
+
 
 
 def help(request):

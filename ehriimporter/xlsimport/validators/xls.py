@@ -164,6 +164,11 @@ class XLSValidator(object):
         if fatal or (self.raise_err and not warn):
             raise XLSError(fullmsg)
 
+    def num_rows(self):
+        if self.sheet is None:
+            return -1
+        return self.sheet.nrows - self.HEADING_ROW
+
     def validate_headers(self):
         """Check header match watch we're expecting."""
         numheads = len(self.HEADINGS)
