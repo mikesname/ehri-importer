@@ -53,7 +53,7 @@ fields:
         i18n: true
     - dates_of_existence:
         multiple: true
-        date: true
+        type: date
     - language_of_description:
         multiple: true
         default: [en]

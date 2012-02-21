@@ -29,15 +29,15 @@ ERROR_CODES = {
 class XLSField(object):
     def __init__(self, name, unique=False, multiple=False,
             default=None, required=False, date=False,
-            validate=False, i18n=False):
+            validate=False, i18n=False, type=None):
         self.name = name
         self.unique = unique
         self.multiple = multiple
         self.default = default
         self.required = False
-        self.date = False
         self.i18n = i18n
         self.validate = False
+        self.type = type
 
     def __unicode__(self):
         return self.name
@@ -77,7 +77,10 @@ class XLSSheetDefinition(object):
         return [f for f in self.fields.values() if f.required]
 
     def date(self):
-        return [f for f in self.fields.values() if f.date]
+        return [f for f in self.fields.values() if f.type=="date"]
+
+    def oftype(self, type):
+        return [f for f in self.fields.values() if f.type==type]
 
 
 class XLSValidator(object):

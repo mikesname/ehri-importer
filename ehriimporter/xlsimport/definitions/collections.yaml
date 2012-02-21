@@ -13,7 +13,7 @@ fields:
          multiple: true
     - dates:
          multiple: true
-         date: true
+         type: date
     - level_of_description:
          default: Collection
     - extent_and_medium:
@@ -45,7 +45,7 @@ fields:
     - rules:
     - dates_of_administration:
          multiple: true
-         date: true
+         type: date
     - description_identifier:
         i18n: true
         default: EHRI
