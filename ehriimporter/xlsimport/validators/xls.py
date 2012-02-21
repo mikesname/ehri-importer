@@ -123,6 +123,10 @@ class XLSValidator(object):
         return [f.name for f in self.fielddef.date()]
 
     @property
+    def CHARS(self):
+        return [f.name for f in self.fielddef.oftype("char")]
+
+    @property
     def I18N(self):
         return [f.name for f in self.fielddef.i18n()]
 
@@ -190,6 +194,7 @@ class XLSValidator(object):
         """Check a single row of data."""
         self.check_multiples(rownum, rowdata)
         self.check_dates(rownum, rowdata)
+        self.check_charfield_length(rownum, rowdata)
 
     def check_required_columns(self):
         """Make sure there are no blanks where there shouldn't
@@ -229,10 +234,13 @@ class XLSValidator(object):
                             rows[0], "Duplicate on unique column: %s: '%s' %s" % (
                                 header, key, [r+1 for r in rows[1:]]))
 
-    def check_name_length(self, rownum, name):
-        """Check names aren't longer than 255 chars."""
-        if len(name) > 255:
-            self.add_error(rownum, "Name over 255 characters: '%s'" % name)
+    def check_charfield_length(self, rownum, rowdata):
+        """Check char fields aren't longer than 255 chars."""
+        for field in self.CHARS:
+            # just pretend everything's a multi-value
+            for item in rowdata.get(field, "").split(",,"):
+                if len(item) > 255:
+                    self.add_error(rownum, "Field over 255 characters: '%s'" % field)
 
     def check_multiples(self, rownum, rowdata):
         """Check fields that only allow single entries don't
@@ -276,11 +284,6 @@ class XLSRepositoryValidator(XLSValidator):
         """Check a single row of data."""
         super(XLSRepositoryValidator, self).validate_row(rownum, rowdata)
         self.check_countrycode(rownum, rowdata)
-        self.check_name_length(rownum, rowdata["authorized_form_of_name"])
-        for field in ["parallel_forms_of_name", "other_forms_of_name"]:
-            for title in [at for at in rowdata[field].split(",,") \
-                    if at.strip() != ""]:
-                self.check_name_length(rownum, "%s (other form)" % title)
 
 
 class XLSCollectionValidator(XLSValidator):
@@ -294,10 +297,6 @@ class XLSCollectionValidator(XLSValidator):
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
         super(XLSCollectionValidator, self).validate_row(rownum, rowdata)
-        self.check_name_length(rownum, rowdata["title"])
-        for title in [at for at in rowdata["other_forms_of_title"].split(",,") \
-                if at.strip() != ""]:
-            self.check_name_length(rownum, "%s (other form)" % title)
 
 
 VALIDATORS = [XLSRepositoryValidator, XLSCollectionValidator]

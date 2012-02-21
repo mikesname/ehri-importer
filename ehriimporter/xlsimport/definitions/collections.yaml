@@ -9,8 +9,10 @@ fields:
     - title:
         unique: true
         i18n: true
+        type: char
     - other_forms_of_title:
          multiple: true
+        type: char
     - dates:
          multiple: true
          type: date
