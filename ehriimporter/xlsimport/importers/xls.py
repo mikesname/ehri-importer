@@ -100,13 +100,13 @@ class XLSImporter(object):
             # we hit a conflicting slug, so bump the suffix & try again
             suffix += 1
 
-    def unique_identifier(self, model, prefix, suffix):
+    def unique_identifier(self, model, prefix, suffix, format="%d"):
         """Get an id based on an incremented index of the
         object count for the given model.  FIXME: Not very safe 
         or atomic."""
         id = self.session.query(models.Object)\
                 .order_by("id DESC").limit(1).one().id
-        return u"%s%d%s" % (prefix, id + 1, suffix)
+        return (u"%s" + format + "%s") % (prefix, id + 1, suffix)
 
     def import_xls(self, xlsfile):
         """Actually import the file."""
@@ -138,6 +138,36 @@ class XLSImporter(object):
         """Abstract implementation."""
         pass
 
+    def add_note(self, item, record, field, typekey, scope, lang="en"):
+        """Add a note record with the given type id, i.e. 
+        ARCHIVIST_NOTE_ID, MAINTENANCE_NOTE_ID."""
+        text = record[field].strip()
+        if text:
+            note = models.Note(
+                    object_id=item.id,
+                    type_id=typekey,
+                    user=self.user,
+                    source_culture=lang,
+                    scope=scope
+            )
+            item.notes.append(note)
+            note.set_i18n(dict(content=text), lang)
+
+    def add_alt_names(self, item, record, field, termid, lang="en"):
+        """Add an alternative name with the given term id, i.e.
+        OTHER_FORM_OF_NAME_ID, PARALLEL_FORM_OF_NAME_ID."""
+        for name in [on for on in record[field].split(",,") \
+                    if on.strip() != ""]:
+            othername = models.OtherName(
+                    object_id=item.id,
+                    type_id=termid,
+                    source_culture=lang
+            )
+            item.other_names.append(othername)
+            othername.set_i18n(dict(
+                name=name
+            ), lang)
+
     def add_property(self, item, record, recordname, propname, lang="en"):
         """Add a property to the object."""
         items = record[recordname].split(",,")        
@@ -160,8 +190,10 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         code = utils.get_code_from_country(record["country"].strip())
         name = record["authorized_form_of_name"]
         # FIXME: wrong lang, etc
+        identifier = self.unique_identifier(models.Repository,
+                "repo", code, format="%06d")
         repo = models.Repository(
-            identifier="repo%06d%s" % (rownum, code),
+            identifier=identifier,
             entity_type_id=keys.TermKeys.CORPORATE_BODY_ID,
             source_culture=lang,
             parent=self.parent,
@@ -184,38 +216,24 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
         ))
 
         # add a note
-        if record["notes"].strip():
-            comment = models.Note(
-                    object_id=repo.id,
-                    type_id=keys.TermKeys.MAINTENANCE_NOTE_ID,
-                    user=self.user,
-                    source_culture=lang,
-                    scope="QubitRepository"
-            )
-            repo.notes.append(comment)
-            comment.set_i18n(dict(
-                    content=record["notes"],
-            ), lang)
+        self.add_note(repo, record, "notes", 
+                keys.TermKeys.MAINTENANCE_NOTE_ID, 
+                "QubitRepository", lang)
+
         # add other & parallel names, with the correct Term ID.
         altnamedict = dict(
                 parallel_forms_of_name=keys.TermKeys.PARALLEL_FORM_OF_NAME_ID,
-                other_names=keys.TermKeys.OTHER_FORM_OF_NAME_ID
+                other_forms_of_name=keys.TermKeys.OTHER_FORM_OF_NAME_ID
         )
-        for field, termid in altnamedict.iteritems():
-            for name in [on for on in record[field].split(",,") \
-                        if on.strip() != ""]:
-                othername = models.OtherName(
-                        type_id=termid,
-                        source_culture=lang
-                )
-                repo.other_names.append(othername)
-                othername.set_i18n(dict(
-                    name=name
-                ), lang)
+        for name, key in altnamedict.iteritems():
+            self.add_alt_names(repo, record, name, key, lang)
 
+        # extract the address fields
         self.add_addresses(repo, record, code, lang)
 
-        propdict = dict(language="language", script="script")
+        # add various properties...
+        propdict = dict(language_of_description="languageOfDescription", 
+                script_of_description="scriptOfDescription")
         for name, prop in propdict.iteritems():
             self.add_property(repo, record, name, prop, lang)
         return repo
@@ -312,7 +330,7 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
             source_standard="ISAD(G) 2nd Edition"
         )
         self.session.add(info)
-        revision = "%s: Imported from AIM25" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        revision = "Imported from EHRI Spreadsheet at: %s" % self.timestamp
         i18ndict = dict((k, v) for k, v in record.iteritems() \
                 if k in self.I18N)
         i18ndict.update(desc_revision_history=revision, desc_rules="ISAD(G)",
@@ -329,21 +347,11 @@ class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
                 archivist_note=keys.TermKeys.ARCHIVIST_NOTE_ID,
                 publication_note=keys.TermKeys.PUBLICATION_NOTE_ID
         )
-        for notename, typekey in notedict.iteritems():
-            if record[notename]:
-                print "Adding %s: %s" % (notename, record[notename])
-                note = models.Note(
-                        object_id=info.id,
-                        type_id=typekey,
-                        user=self.user,
-                        source_culture=lang,
-                        scope="InformationObject"
-                )
-                info.notes.append(note)
-                note.set_i18n(dict(
-                        content=record[notename],
-                ), lang)
+        for name, key in notedict.iteritems():
+            self.add_note(info, record, name, key, "InformationObject", lang)
 
+        self.add_alt_names(info, record, "other_forms_of_title", 
+                keys.TermKeys.OTHER_FORM_OF_NAME_ID, lang)
         #event = self.parse_date(record["dates"], info, lang)
         #if event:
         #    info.events.append(event)

@@ -19,7 +19,7 @@ fields:
     - region:    # I18N field in qubit
     - country:
         required: true
-        validate: true
+        validate: true        
     - telephone:
         multiple: true
     - fax:

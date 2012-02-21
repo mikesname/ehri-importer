@@ -28,14 +28,14 @@ ERROR_CODES = {
 
 class XLSField(object):
     def __init__(self, name, unique=False, multiple=False,
-            default=None, required=False, isdate=False,
+            default=None, required=False, date=False,
             validate=False, i18n=False):
         self.name = name
         self.unique = unique
         self.multiple = multiple
         self.default = default
         self.required = False
-        self.isdate = False
+        self.date = False
         self.i18n = i18n
         self.validate = False
 
@@ -57,13 +57,8 @@ class XLSSheetDefinition(object):
                 for name, fdef in fielddef.iteritems():
                     field = XLSField(name)
                     if fdef is not None:
-                        field.unique = fdef.get("unique", field.unique)
-                        field.multiple = fdef.get("multiple", field.multiple)
-                        field.required = fdef.get("required", field.required)
-                        field.default = fdef.get("default", field.default)
-                        field.isdate = fdef.get("date", field.isdate)
-                        field.validate = fdef.get("validate", field.validate)
-                        field.i18n = fdef.get("i18n", field.i18n)
+                        for key, val in fdef.iteritems():
+                            setattr(field, key, val)
                     self.fields[name] = field
 
     def names(self):
@@ -82,7 +77,7 @@ class XLSSheetDefinition(object):
         return [f for f in self.fields.values() if f.required]
 
     def date(self):
-        return [f for f in self.fields.values() if f.isdate]
+        return [f for f in self.fields.values() if f.date]
 
 
 class XLSValidator(object):
