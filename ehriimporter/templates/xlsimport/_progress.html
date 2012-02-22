@@ -1,0 +1,20 @@
+{% if state == "SUCCESS" %}
+    <div class="alert alert-success">
+        <strong>Import successfully completed.</strong>
+    </div>
+{% else %}
+    {% if state == "PROGRESS" %}
+        <div class="alert alert-info">
+            <strong>Please Wait.</strong>
+            Refresh this page to view import progress.
+        </div>
+    {% else %}
+        <div class="alert alert-error">
+            <strong>Uh oh, progress is {{state}}</strong>
+        </div>
+    {% endif %}
+{% endif %}
+<div id="import-progress" data-state="{{state}}" class="progress progress-info progress-striped">
+    <div class="bar" style="width: {{progress}}%;"></div>
+</div>
+
