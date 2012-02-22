@@ -167,7 +167,7 @@ class XLSValidator(object):
     def num_rows(self):
         if self.sheet is None:
             return -1
-        return self.sheet.nrows - self.HEADING_ROW
+        return self.sheet.nrows - (self.HEADING_ROW + 1)
 
     def validate_headers(self):
         """Check header match watch we're expecting."""
