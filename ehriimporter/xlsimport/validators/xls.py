@@ -148,6 +148,22 @@ class XLSValidator(object):
     def is_valid(self):
         return len(self.errors) > 0
 
+    def coerce_int(self, val):
+        """Liberally parse an integer value, assuming null -> 0"""
+        try:
+            return int(val)
+        except ValueError:
+            return
+
+    def coerce_bool(self, val):
+        """Parse a boolean value, assuming "yes", "true", "1" etc -> True."""
+        if str(val).lower().strip() in ("yes", "true",):
+            return True
+        try:
+            return int(val) == 1
+        except ValueError:
+            return False
+
     def print_errors(self):
         # sort by lin num
         errors = sorted(self.errors, key=lambda x: x[0])

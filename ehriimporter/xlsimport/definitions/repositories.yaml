@@ -79,5 +79,6 @@ fields:
         default: [Latn]
     - sources:
         multiple: true
-    - priority:
+    - ehri_priority:
+    - ehri_copyright:
     - notes:

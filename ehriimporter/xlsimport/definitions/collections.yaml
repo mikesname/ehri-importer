@@ -68,5 +68,5 @@ fields:
          multiple: true
     - archivist_note:
     - ehri_scope:
-    - ehri_priorty:
+    - ehri_priority:
     - ehri_copyright:

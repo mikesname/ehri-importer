@@ -188,12 +188,11 @@ class XLSImporter(object):
         # but it's how qubit works...
         event.slug.append(models.Slug(slug=self.random_slug()))            
 
-    def add_property(self, item, record, recordname, propname, lang="en"):
+    def add_property(self, item, name, value, lang="en"):
         """Add a property to the object."""
-        items = record[recordname].split(",,")        
-        prop = models.Property(name=propname, source_culture=lang)
+        prop = models.Property(name=name, source_culture=lang)
         item.properties.append(prop)
-        prop.set_i18n(dict(value=phpserialize.dumps(items)), lang)
+        prop.set_i18n(dict(value=phpserialize.dumps(value)), lang)
 
 
 
@@ -253,7 +252,15 @@ class Repository(xlsvalidate.Repository, XLSImporter):
         propdict = dict(language_of_description="languageOfDescription", 
                 script_of_description="scriptOfDescription")
         for name, prop in propdict.iteritems():
-            self.add_property(repo, record, name, prop, lang)
+            value = [v for v in record[name].split(",,") if v.strip() != ""]
+            self.add_property(repo, prop, value, lang)
+
+        # handle ehri-specific metadata
+        ehrimeta = dict(
+                ehriPriority=self.coerce_int(record["ehri_priority"]),
+                ehriCopyrightIssue=self.coerce_bool(record["ehri_copyright"])
+        )
+        self.add_property(repo, "ehrimeta", ehrimeta, lang)
         return repo
 
     def add_addresses(self, repo, record, countrycode, lang):
@@ -386,6 +393,15 @@ class Collection(xlsvalidate.Collection, XLSImporter):
                 script_of_description="scriptOfDescription"
         )
         for name, prop in propdict.iteritems():
-            self.add_property(info, record, name, prop, lang)
+            values = [v for v in record[name].split(",,") if v.strip() != ""] 
+            self.add_property(info, prop, values, lang)
+
+        # handle ehri-specific metadata
+        ehrimeta = dict(
+                ehriPriority=self.coerce_int(record["ehri_priority"]),
+                ehriCopyrightIssue=self.coerce_bool(record["ehri_copyright"]),
+                ehriScope=self.coerce_int(record["ehri_scope"])
+        )
+        self.add_property(info, "ehrimeta", ehrimeta, lang)
         return info
 
