@@ -1,11 +1,20 @@
+"""Importer long-running tasks."""
+
+from django.conf import settings
 from celery.task import Task
 from importers import xls as xlsi
+
+DBNAME = getattr(settings, "IMPORTER_QUBIT_DBNAME", "icaatom")
+DBUSER = getattr(settings, "IMPORTER_QUBIT_DBUSER", "icaatom")
+DBPASS = getattr(settings, "IMPORTER_QUBIT_DBPASS", "changeme")
+USER = getattr(settings, "IMPORTER_QUBIT_USER", "mike")
 
 
 class ImportXLSTask(Task):
     name = "xlsimport.ImportXSL"
-    def run(self, xlsfile, user=None):
-        importer = xlsi.XLSRepositoryImporter("icaatom", "icaatom", "changeme", atomuser=user)
+    def run(self, importerklass, xlsfile):
+        importer = getattr(xlsi, importerklass)(database=DBNAME, username=DBUSER, 
+                    password=DBPASS, atomuser=USER)
         importer.validate(xlsfile)
         total = importer.num_rows()
         meta = dict(counter=0)

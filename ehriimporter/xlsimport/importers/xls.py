@@ -41,7 +41,8 @@ class XLSImportError(Exception):
 
 class XLSImporter(object):
     """Base class for repository importer."""
-    def __init__(self, database, username, password, hostname="localhost", port=None, atomuser=None,
+    def __init__(self, database=None, username=None, 
+                password=None, hostname="localhost", port=None, atomuser=None,
                 rowfunc=None, donefunc=None): 
         engine = create_engine(URL("mysql",
             username=username,

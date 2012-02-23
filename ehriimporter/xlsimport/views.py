@@ -56,7 +56,7 @@ def importxls(request):
                 context.update(errors=validator.errors, validator=validator)
                 os.unlink(temppath)
                 return render(request, template, context)
-            async = tasks.ImportXLSTask.delay(temppath, "mike")
+            async = tasks.ImportXLSTask.delay(validator.__class__.__name__, temppath)
             return redirect("xls_progress", task_id=async.task_id)
     context.update(form=form)
     return render(request, template, context)

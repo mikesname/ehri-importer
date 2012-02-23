@@ -156,6 +156,12 @@ LOGGING = {
     }
 }
 
+# Qubit db settings
+IMPORTER_QUBIT_DBNAME = "icaatom"
+IMPORTER_QUBUT_DBUSER = "icaatom"
+IMPORTER_QUBIT_DBPASS = "changeme"
+IMPORTER_QUBIT_USER = "mike"
+
 try:
     from production_settings import *
 except ImportError:
