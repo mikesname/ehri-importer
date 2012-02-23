@@ -1,47 +1,7 @@
-{% extends "site_base.html" %}
+{% extends "xlsimport/import_base.html" %}
 
 {% load i18n %}
 
 {% block body_class %}xls_import{% endblock %}
-
-{% block body %}
-    <form method="post" class="well" enctype="multipart/form-data">
-        {% csrf_token %}
-        {% if form.non_field_errors %}
-            <div class="alert alert-error">
-                {% if form_error_title %}
-                    <strong>{{ form_error_title }}</strong>
-                {% endif %}
-                {% for error in form.non_field_errors %}
-                    {{ error }}<br />
-                {% endfor %}
-            </div>
-        {% endif %}
-        {% for field in form %}
-            {% if field.is_hidden %}
-                {{ field }}
-            {% else %}
-                <div class="control-group {% if field.errors %}error{% endif %}">
-                    <label class="control-label {% if field.field.required %}requiredField{% endif %}" for="{{ field.auto_id }}">
-                        {{ field.label|safe }}
-                    </label>
-                    <div class="controls">
-                        {{ field }}
-                        {% for error in field.errors %}
-                            <span class="help-inline">{{ error }}</span>
-                        {% endfor %}
-                        {% if field.help_text %}
-                            <span class="help-block">{{ field.help_text|safe }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-        {% endfor %}
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Validate</button>
-        </div>
-    </form>
-    {% if validator %}
-        {% include "xlsimport/_report.html" %}
-    {% endif %}
-{% endblock %}
+{% block page_heading %}{% trans "Validate Spreadsheet" %}{% endblock %}
+{% block submit_action %}{% trans "Validate" %}{% endblock %}

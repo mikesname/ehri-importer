@@ -30,8 +30,21 @@
                             <h3><a class="brand" href="{% url home %}">EHRI Data</a></h3>
                             {% block nav %}
                                 <ul class="nav">
-                                {% spaceless %}
-                                    <li id="tab_xls_import"><a href="{% url xls_validate %}">{% trans "Spreadsheet Validator" %}</a></li>
+                                    {% spaceless %}
+                                    <li class="dropdown" id="tab_xls_import">
+                                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Spreadsheets
+
+                                        <b class="caret"></b>
+                                    </a>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a href="{% url xls_validate %}">{% trans "Validate" %}</a>
+                                            </li>
+                                            <li>
+                                                <a href="{% url xls_import %}">{% trans "Import" %}</a>
+                                            </li>
+                                        </ul>
+                                    </li>
                                     <li id="tab_xls_help"><a href="{% url xls_help %}">{% trans "Help" %}</a></li>
                                 {% endspaceless %}
                                 </ul>

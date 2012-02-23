@@ -6,8 +6,7 @@ from django.conf.urls.defaults import patterns, include, url
 
 urlpatterns = patterns('',
     # Examples:
-    url(r'^$', 'ehriimporter.views.home', name='home'),
-    url(r'^xlsimport/', include('xlsimport.urls')),
+    url(r'^', include('xlsimport.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),

@@ -21,6 +21,12 @@ def save_to_temp(f):
     return temp.name
 
 
+def home(request):
+    template = "xlsimport/home.html"
+    context = {}
+    return render(request, template, context)
+
+
 def validate(request):
     """Validate an XLS."""
     template = "xlsimport/validate.html"
@@ -41,7 +47,7 @@ def validate(request):
 
 def importxls(request):
     """Import an XLS."""
-    template = "xlsimport/validate.html"
+    template = "xlsimport/import.html"
     form = forms.XLSImportForm()
     context = dict(form=form)
     if request.method == "POST":

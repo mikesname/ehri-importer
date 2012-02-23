@@ -6,6 +6,7 @@ from xlsimport import forms, views
 
 
 urlpatterns = patterns('',
+    url(r'^$', views.home, name="home"),
     url(r'^validate/?$', views.validate, name='xls_validate'),
     url(r'^import/?$', views.importxls, name='xls_import'),
     url(r'^import/(?P<task_id>[a-z0-9-]+)/?$', 
