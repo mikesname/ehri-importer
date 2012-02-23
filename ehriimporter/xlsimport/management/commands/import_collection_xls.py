@@ -63,7 +63,7 @@ class Command(BaseCommand):
             self.stderr.write("Done\n")
         def rowfunc(repo):
             self.stderr.write("Imported: %s\n" % repo.identifier)
-        importer = xls.XLSCollectionImporter(options["database"], options["dbuser"],
+        importer = xls.Collection(options["database"], options["dbuser"],
                 options["dbpass"], options["dbhost"], options["dbport"], options["user"],
                 rowfunc=rowfunc, donefunc=donefunc)
         importer.do(args[0])

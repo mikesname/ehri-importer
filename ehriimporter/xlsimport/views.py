@@ -41,14 +41,21 @@ def validate(request):
 
 def importxls(request):
     """Import an XLS."""
-    template = "xlsimport/import.html"
+    template = "xlsimport/validate.html"
     form = forms.XLSImportForm()
-    context = dict()
+    context = dict(form=form)
     if request.method == "POST":
         form = forms.XLSImportForm(request.POST, request.FILES)
         if form.is_valid():
             name = request.FILES["xlsfile"].name
             temppath = save_to_temp(request.FILES["xlsfile"])
+            validator = getattr(xls, form.cleaned_data["xlstype"])()
+            validator.validate(temppath)
+            # bail out if we get an error
+            if validator.errors:
+                context.update(errors=validator.errors, validator=validator)
+                os.unlink(temppath)
+                return render(request, template, context)
             async = tasks.ImportXLSTask.delay(temppath, "mike")
             return redirect("xls_progress", task_id=async.task_id)
     context.update(form=form)
@@ -60,11 +67,14 @@ def progress(request, task_id):
     template = "xlsimport/progress.html" if not request.is_ajax() \
             else "xlsimport/_progress.html"
     async = result.AsyncResult(task_id)
-    context = dict(state=async.state)
-    print "STATE:", async.status
+    context = dict(async=async)
+    progress = 0
     if async.status == "PROGRESS":
         info = async.info
-        context.update(progress=round(float(info["current"]) / float(info["total"]) * 100))
+        progress = round(float(info["current"]) / float(info["total"]) * 100)
+    elif async.successful():
+        progress = 100
+    context.update(progress=progress)
     return render(request, template, context)
 
 

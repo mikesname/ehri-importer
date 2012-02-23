@@ -41,8 +41,7 @@
             <button type="submit" class="btn btn-primary">Import</button>
         </div>
     </form>
-    {% if result %}
-        {% debug result %}        
-        
+    {% if validator %}
+        {% include "xlsimport/_report.html" %}
     {% endif %}
 {% endblock %}

@@ -11,7 +11,7 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import and_
 
-from xlsimport.validators import xls
+from xlsimport.validators import xls as xlsvalidate
 from xlsimport import utils
 from ordereddict import OrderedDict
 
@@ -196,11 +196,11 @@ class XLSImporter(object):
 
 
 
-class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
+class Repository(xlsvalidate.Repository, XLSImporter):
     """Import repository information."""
     def __init__(self, *args, **kwargs):    
         XLSImporter.__init__(self, *args, **kwargs)
-        xls.XLSRepositoryValidator.__init__(self)
+        xlsvalidate.Repository.__init__(self)
         self.parent = self.session.query(models.Actor)\
                 .filter(models.Actor.id==keys.ActorKeys.ROOT_ID).one()
 
@@ -295,11 +295,11 @@ class XLSRepositoryImporter(xls.XLSRepositoryValidator, XLSImporter):
             ), lang)
 
 
-class XLSCollectionImporter(xls.XLSCollectionValidator, XLSImporter):
+class Collection(xlsvalidate.Collection, XLSImporter):
     """Import repository information."""
     def __init__(self, *args, **kwargs):    
         XLSImporter.__init__(self, *args, **kwargs)
-        xls.XLSCollectionValidator.__init__(self)
+        xlsvalidate.Collection.__init__(self)
 
         self.parent = self.session.query(models.InformationObject)\
                 .filter(models.InformationObject.id==keys.InformationObjectKeys.ROOT_ID)\

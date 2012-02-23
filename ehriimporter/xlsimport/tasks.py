@@ -4,7 +4,6 @@ from importers import xls as xlsi
 
 class ImportXLSTask(Task):
     name = "xlsimport.ImportXSL"
-    ignore_result=True
     def run(self, xlsfile, user=None):
         importer = xlsi.XLSRepositoryImporter("icaatom", "icaatom", "changeme", atomuser=user)
         importer.validate(xlsfile)
@@ -12,8 +11,8 @@ class ImportXLSTask(Task):
         meta = dict(counter=0)
         def rowfunc(repo):
             meta["counter"] += 1
-            #self.update_state(state="PROGRESS", meta=dict(
-            #    current=meta["counter"], total=total))
+            self.update_state(state="PROGRESS", meta=dict(
+                current=meta["counter"], total=total))
         importer.rowfunc = rowfunc
         importer.do(xlsfile)
 

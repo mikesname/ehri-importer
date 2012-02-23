@@ -7,19 +7,18 @@
 {% block body %}
 
     <h1>Importing Spreadsheet</h1>
-    <div id="import-info">
-        {% include "xlsimport/_progress.html" %}
-    </div>
+    <p>
+        <div id="import-info">
+            {% include "xlsimport/_progress.html" %}
+        </div>
+    </p>
     <script type="application/javascript">
         var timer = -1;
         $(function() {
-                console.log("running func", $("#import-progress").data("state"));
             timer = setInterval(function() {
                 $("#import-info").load(window.location.href, function() {
-                    console.log("loaded", $(".bar").get(0).style.width);
                     if ($.inArray($("#import-progress").data("state"), [
                             "PENDING", "PROGRESS"]) == -1) {
-                        console.log("Cancelling timer");
                         clearInterval(timer);
                     }
                 });

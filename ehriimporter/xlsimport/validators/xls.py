@@ -276,13 +276,13 @@ class XLSValidator(object):
                             datestr, field))
 
 
-class XLSRepositoryValidator(XLSValidator):
+class Repository(XLSValidator):
     """Validator for Repository import."""
     name = "Repositories"
 
     def __init__(self, *args, **kwargs):
         kwargs["definitions"] = kwargs.get("definitions", "repositories.yaml")
-        super(XLSRepositoryValidator, self).__init__(*args, **kwargs)
+        super(Repository, self).__init__(*args, **kwargs)
 
     def check_countrycode(self, rownum, rowdata):
         """Check we can lookup the country code."""
@@ -293,22 +293,22 @@ class XLSRepositoryValidator(XLSValidator):
 
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
-        super(XLSRepositoryValidator, self).validate_row(rownum, rowdata)
+        super(Repository, self).validate_row(rownum, rowdata)
         self.check_countrycode(rownum, rowdata)
 
 
-class XLSCollectionValidator(XLSValidator):
+class Collection(XLSValidator):
     """Validator for Collection import."""    
     name = "Collections"
     
     def __init__(self, *args, **kwargs):
         kwargs["definitions"] = kwargs.get("definitions", "collections.yaml")
-        super(XLSCollectionValidator, self).__init__(*args, **kwargs)
+        super(Collection, self).__init__(*args, **kwargs)
 
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
-        super(XLSCollectionValidator, self).validate_row(rownum, rowdata)
+        super(Collection, self).validate_row(rownum, rowdata)
 
 
-VALIDATORS = [XLSRepositoryValidator, XLSCollectionValidator]
+VALIDATORS = [Repository, Collection]
 

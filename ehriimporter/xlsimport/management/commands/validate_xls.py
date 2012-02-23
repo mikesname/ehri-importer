@@ -14,7 +14,7 @@ class Command(BaseCommand):
         if not args:
             raise CommandError("No XLS file given.")
 
-        validator = xls.XLSRepositoryValidator()
+        validator = xls.Repository()
         validator.validate(args[0])
         if validator.errors:
             for err in validator.errors:

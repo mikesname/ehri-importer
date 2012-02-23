@@ -4,15 +4,9 @@
 from django import forms
 
 XLSTYPES = (
-        ("XLSRepositoryValidator", "Institutions"),
-        ("XLSCollectionValidator", "Collections"),
+        ("Repository", "Institutions"),
+        ("Collection", "Collections"),
 )
-
-XLSIMPORTTYPES = (
-        ("XLSRepositoryImporter", "Institutions"),
-        ("XLSCollectionImporter", "Collections"),
-)
-
 
 class XLSForm(forms.Form):
     """Form which allows uploading an XLS file."""
@@ -22,5 +16,3 @@ class XLSForm(forms.Form):
 
 class XLSImportForm(XLSForm):
     """Form for importing data."""
-    xlstype = forms.ChoiceField(choices=XLSIMPORTTYPES, 
-            label="Spreadsheet type")
