@@ -209,8 +209,9 @@ class Repository(xlsvalidate.Repository, XLSImporter):
         code = utils.get_code_from_country(record["country"].strip())
         name = record["authorized_form_of_name"]
         # FIXME: wrong lang, etc
+        print name
         identifier = self.unique_identifier(models.Repository,
-                "repo", code, format="%06d")
+                "r", code, format="%06d")
         repo = models.Repository(
             identifier=identifier,
             entity_type_id=keys.TermKeys.CORPORATE_BODY_ID,
@@ -274,8 +275,21 @@ class Repository(xlsvalidate.Repository, XLSImporter):
                 return unicode(int(f))
             return f
 
+        # we must have a primary contact containing the country code
+        # which is mandatory
+        pcontact = models.ContactInformation(primary_contact=True,
+                country_code=countrycode, source_culture=lang)
+        repo.contacts.append(pcontact)
+        pcontact.set_i18n(dict(
+                    contact_type=record["contact_type"],
+                    city=record["city"],
+                    region=record["region"],
+                    note="Import from EHRI contact spreadsheet"
+            ), lang) 
+
+        # some fields can have multiple values, which we need
+        # to stick in a secondary contact model
         contact_fields = list(set(self.CONTACTS).difference(self.I18N))
-        contact_i18n = list(set(self.CONTACTS).intersection(self.I18N))
         contacts = []
         for field in contact_fields:
             multival = record.get(field, "")
@@ -285,22 +299,13 @@ class Repository(xlsvalidate.Repository, XLSImporter):
                     contacts.append({})
                 contacts[i][field] = fieldvals[i]
 
-        for i in range(len(contacts)):
-            contact = contacts[i]
-            contact.update(source_culture=lang)
-            if i == 0:
-                contact.update(primary_contact=True, country_code=countrycode)
-            addcontact = models.ContactInformation(**contact)
-            repo.contacts.append(addcontact)
-            # only set i18n record for the first contact
-            if i > 0:
-                break
-            addcontact.set_i18n(dict(
-                    contact_type=record["contact_type"],
-                    city=record["city"],
-                    region=record["region"],
-                    note="Import from EHRI contact spreadsheet"
-            ), lang)
+        if contacts:
+            for key, value in contacts[0].iteritems():
+                setattr(pcontact, key, value)
+            for contact in contacts[1:]:
+                seccontact = models.ContactInformation(**contact)
+                seccontact.source_culture = lang
+                repo.contacts.append(seccontact)
 
 
 class Collection(xlsvalidate.Collection, XLSImporter):
