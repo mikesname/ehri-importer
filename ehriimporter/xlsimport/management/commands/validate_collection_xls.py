@@ -4,7 +4,7 @@ Validate repository information from a spreadsheet.
 
 from django.core.management.base import BaseCommand, CommandError
 
-from xlsimport.validators import xls
+from xlsimport import validators
 
 class Command(BaseCommand):
     """Import collections to ICA Atom."""
@@ -14,7 +14,7 @@ class Command(BaseCommand):
         if not args:
             raise CommandError("No XLS file given.")
 
-        validator = xls.Collection()
+        validator = validators.Collection()
         validator.validate(args[0])
         if validator.errors:
             for err in validator.errors:

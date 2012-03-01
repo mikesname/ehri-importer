@@ -11,7 +11,7 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import and_
 
-from xlsimport.validators import xls as xlsvalidate
+from xlsimport import validators
 from xlsimport import utils
 from ordereddict import OrderedDict
 
@@ -196,11 +196,11 @@ class XLSImporter(object):
 
 
 
-class Repository(xlsvalidate.Repository, XLSImporter):
+class Repository(validators.Repository, XLSImporter):
     """Import repository information."""
     def __init__(self, *args, **kwargs):    
         XLSImporter.__init__(self, *args, **kwargs)
-        xlsvalidate.Repository.__init__(self)
+        validators.Repository.__init__(self)
         self.parent = self.session.query(models.Actor)\
                 .filter(models.Actor.id==keys.ActorKeys.ROOT_ID).one()
 
@@ -308,11 +308,11 @@ class Repository(xlsvalidate.Repository, XLSImporter):
                 repo.contacts.append(seccontact)
 
 
-class Collection(xlsvalidate.Collection, XLSImporter):
+class Collection(validators.Collection, XLSImporter):
     """Import repository information."""
     def __init__(self, *args, **kwargs):    
         XLSImporter.__init__(self, *args, **kwargs)
-        xlsvalidate.Collection.__init__(self)
+        validators.Collection.__init__(self)
 
         self.parent = self.session.query(models.InformationObject)\
                 .filter(models.InformationObject.id==keys.InformationObjectKeys.ROOT_ID)\
@@ -347,7 +347,7 @@ class Collection(xlsvalidate.Collection, XLSImporter):
                 repoid))
 
         identifier = self.unique_identifier(models.InformationObject,
-                "coll", repo.contacts[0].country_code)
+                "c", repo.contacts[0].country_code)
         info = models.InformationObject(
             identifier=identifier,
             source_culture=lang,

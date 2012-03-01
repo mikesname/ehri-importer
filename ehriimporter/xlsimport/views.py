@@ -7,10 +7,7 @@ from django.shortcuts import render, redirect
 
 from celery import result
 
-from xlsimport import forms, tasks
-from validators import xls
-from importers import xls as xlsi
-
+from xlsimport import forms, tasks, validators, importers
 
 
 def save_to_temp(f):
@@ -37,7 +34,7 @@ def validate(request):
         if form.is_valid():
             name = request.FILES["xlsfile"].name
             temppath = save_to_temp(request.FILES["xlsfile"])
-            validator = getattr(xls, form.cleaned_data["xlstype"])()
+            validator = getattr(validators, form.cleaned_data["xlstype"])()
             validator.validate(temppath)
             os.unlink(temppath)
             context.update(errors=validator.errors, validator=validator)
@@ -55,7 +52,7 @@ def importxls(request):
         if form.is_valid():
             name = request.FILES["xlsfile"].name
             temppath = save_to_temp(request.FILES["xlsfile"])
-            validator = getattr(xls, form.cleaned_data["xlstype"])()
+            validator = getattr(validators, form.cleaned_data["xlstype"])()
             validator.validate(temppath)
             # bail out if we get an error
             if validator.errors:
@@ -86,8 +83,7 @@ def progress(request, task_id):
 
 def help(request):
     """Show help about import spreadsheet format."""
-    importers = xls.VALIDATORS
     template = "xlsimport/help.html"
-    context = dict(importers=importers)
+    context = dict(importers=validators.VALIDATORS)
     return render(request, template, context)
 

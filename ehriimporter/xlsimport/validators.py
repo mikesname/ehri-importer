@@ -94,7 +94,7 @@ class XLSValidator(object):
             defpath = os.path.abspath(
                     os.path.join(
                         os.path.dirname(__file__),                        
-                        os.path.pardir, "definitions", definitions))
+                        "definitions", definitions))
             self.fielddef.load_yaml(defpath)
         
         self.raise_err = raise_err

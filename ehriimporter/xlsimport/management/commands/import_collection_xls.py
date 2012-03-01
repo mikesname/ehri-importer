@@ -6,7 +6,7 @@ from optparse import make_option
 
 from django.core.management.base import BaseCommand, CommandError
 
-from xlsimport.importers import xls
+from xlsimport import importers
 
 class Command(BaseCommand):
     """Import to ICA Atom."""
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             self.stderr.write("Done\n")
         def rowfunc(repo):
             self.stderr.write("Imported: %s\n" % repo.identifier)
-        importer = xls.Collection(options["database"], options["dbuser"],
+        importer = importers.Collection(options["database"], options["dbuser"],
                 options["dbpass"], options["dbhost"], options["dbport"], options["user"],
                 rowfunc=rowfunc, donefunc=donefunc)
         importer.do(args[0])
