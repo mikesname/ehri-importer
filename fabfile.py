@@ -33,6 +33,7 @@ def setup():
     require('path')
     sudo('yum install -y python-setuptools')
     sudo('yum-builddep -y python26-mysqldb')
+    sudo('yum-builddep -y python26-PyYAML')
     sudo('easy_install pip')
     sudo('pip install virtualenv')
 
