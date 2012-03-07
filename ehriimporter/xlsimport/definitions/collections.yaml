@@ -21,10 +21,11 @@ fields:
     - extent_and_medium:
         i18n: true
     - creator:
-    - repository:
-    - scope_and_content:
+    - acquisition:
         i18n: true
     - archival_history:
+        i18n: true
+    - scope_and_content:
         i18n: true
     - language:
          multiple: true
@@ -40,32 +41,32 @@ fields:
     - notes:
     - subject_access:
         i18n: true
+        multiple: true
     - place_access:
         i18n: true
+        multiple: true        
     - name_access:
         i18n: true
+        multiple: true
     - rules:
     - dates_of_administration:
-         multiple: true
-         type: date
+        multiple: true
+        type: date
     - description_identifier:
         i18n: true
         default: EHRI
     - institution_identifier:
         i18n: true
         default: EHRI
-    - status:
-        default: draft
-    - detail:
-         default: partial
     - language_of_description:
-         multiple: true
-         default: [en]
+        multiple: true
+        default: [en]
     - script_of_description:
-         multiple: true
-         default: [Latn]
+        multiple: true
+        default: [Latn]
     - sources:
-         multiple: true
+        i18n: true
+        multiple: true
     - archivist_note:
     - ehri_scope:
     - ehri_priority:
