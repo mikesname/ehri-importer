@@ -7,7 +7,7 @@ from xlsimport import importers
 DBNAME = getattr(settings, "IMPORTER_QUBIT_DBNAME", "icaatom")
 DBUSER = getattr(settings, "IMPORTER_QUBIT_DBUSER", "icaatom")
 DBPASS = getattr(settings, "IMPORTER_QUBIT_DBPASS", "changeme")
-USER = getattr(settings, "IMPORTER_QUBIT_USER", "mike")
+USER = getattr(settings, "IMPORTER_QUBIT_USER", "mikeb")
 
 
 class ImportXLSTask(Task):

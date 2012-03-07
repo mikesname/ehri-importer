@@ -191,13 +191,14 @@ class XLSValidator(object):
         heads = [h.value for h in self.sheet.row_slice(self.HEADING_ROW, 0, numheads)]
         diffs = set(heads).difference(self.HEADINGS)
         err = ERROR_CODES["unexpected_heading"]
-        if len(diffs) > 0:
+        if "" not in diffs:
+            print diffs, heads, self.HEADINGS
             for diff in diffs:
                 self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
             raise XLSError(err)        
-        diffs = set(self.HEADINGS).difference(heads)
-        err = ERROR_CODES["missing_heading"]
-        if len(diffs) > 0:
+        else:
+            diffs = set(self.HEADINGS).difference(heads)
+            err = ERROR_CODES["missing_heading"]
             for diff in diffs:
                 self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
             raise XLSError(err)

@@ -173,6 +173,25 @@ class XLSImporter(object):
                 name=name
             ), lang)
 
+    def add_term(self, termstr, item, typeid, lang="en"):
+        """Add a term with a given taxonomy, i.e. subject
+        or place."""
+        term = models.Term(taxonomy_id=typeid, parent_id=keys.TermKeys.ROOT_ID,
+                source_culture=lang)
+        self.session.add(term)
+        term.set_i18n(dict(name=termstr), lang)
+        #item.terms.append(term)
+
+    def add_authority(self, name, typeid, item, lang="en"):
+        """Add persons associated."""
+        person = models.Actor(entity_type_id=typeid, source_culture=lang,
+            parent_id=keys.ActorKeys.ROOT_ID,
+            description_status=self.status,
+            description_detail=self.detail
+        )
+        self.session.add(person)
+        person.set_i18n(dict(authorized_form_of_name=name), lang)        
+
     def add_date(self, datestr, item, typeid, lang="en"):
         """Add a date as an event object."""
         if datestr.startswith("c"):
@@ -360,11 +379,23 @@ class Collection(validators.Collection, XLSImporter):
         )
         self.session.add(info)
         revision = "Imported from EHRI Spreadsheet at: %s" % self.timestamp
-        i18ndict = dict((k, v) for k, v in record.iteritems() \
-                if k in self.I18N)
-        i18ndict.update(desc_revision_history=revision, desc_rules="ISAD(G)",
-                desc_sources="\n".join(record["sources"].split(",,")))
+        i18ndict = dict(revision=revision, desc_rules=record["rules"])
+
+        for k, v in record.iteritems():
+            if k in self.I18N:
+                i18ndict[k] = v.replace(",,", "\n")
         info.set_i18n(i18ndict, lang)
+
+        # add term relations
+        termdict = dict(subject_access=keys.TaxonomyKeys.SUBJECT_ID,
+                place_access=keys.TaxonomyKeys.PLACE_ID)
+        for key, termid in termdict.iteritems():
+            vals = [v for v in record[key].split(",,") if v != ""]
+            for val in vals:
+                self.add_term(val, info, termid, lang)
+
+        for val in [v for v in record["name_access"].split(",,") if v != ""]:
+            self.add_authority(val, keys.TermKeys.PERSON_ID, info, lang)
 
         # add a slug
         info.slug.append(models.Slug(slug=self.unique_slug(record["title"])))

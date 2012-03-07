@@ -40,13 +40,10 @@ fields:
     - publication_note:
     - notes:
     - subject_access:
-        i18n: true
         multiple: true
     - place_access:
-        i18n: true
         multiple: true        
     - name_access:
-        i18n: true
         multiple: true
     - rules:
     - dates_of_administration:
