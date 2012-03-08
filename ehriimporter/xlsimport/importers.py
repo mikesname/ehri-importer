@@ -35,6 +35,9 @@ def slugify(value):
     return SLUGIFY_HYPHENATE_RE.sub('-', value)
 
 
+def split_multiple(multistr, sep=",,"):
+    return [s for s in multistr.split(sep) if s.strip()]
+
 class XLSImportError(Exception):
     """Something went wrong with the import."""
 
@@ -75,7 +78,10 @@ class XLSImporter(object):
                     .DESCRIPTION_DETAIL_LEVEL_ID)\
                 .join(models.TermI18N, models.Term.id == models.TermI18N.id)\
                 .filter(models.TermI18N.name == "Partial").one()
-
+        self.actorroot = self.session.query(models.Actor).filter(
+                models.Actor.id==keys.ActorKeys.ROOT_ID).one()
+        self.termroot = self.session.query(models.Term).filter(
+                models.Term.id==keys.TermKeys.ROOT_ID).one()
         # running count of slugs used so far in the import transaction
         self.slugs = {}
         self.ids = {}
@@ -161,8 +167,7 @@ class XLSImporter(object):
     def add_alt_names(self, item, record, field, termid, lang="en"):
         """Add an alternative name with the given term id, i.e.
         OTHER_FORM_OF_NAME_ID, PARALLEL_FORM_OF_NAME_ID."""
-        for name in [on for on in record[field].split(",,") \
-                    if on.strip() != ""]:
+        for name in split_multiple(record[field]):
             othername = models.OtherName(
                     object_id=item.id,
                     type_id=termid,
@@ -176,36 +181,79 @@ class XLSImporter(object):
     def add_term(self, termstr, item, typeid, lang="en"):
         """Add a term with a given taxonomy, i.e. subject
         or place."""
-        term = models.Term(taxonomy_id=typeid, parent_id=keys.TermKeys.ROOT_ID,
+        term = models.Term(taxonomy_id=typeid, parent=self.termroot,
                 source_culture=lang)
         self.session.add(term)
         term.set_i18n(dict(name=termstr), lang)
-        #item.terms.append(term)
+        term.slug.append(models.Slug(slug=self.unique_slug(termstr)))
+        relation = models.ObjectTermRelation(
+                object=item, term=term)
+        self.session.add(relation)
 
-    def add_authority(self, name, typeid, item, lang="en"):
-        """Add persons associated."""
-        person = models.Actor(entity_type_id=typeid, source_culture=lang,
-            parent_id=keys.ActorKeys.ROOT_ID,
-            description_status=self.status,
-            description_detail=self.detail
-        )
-        self.session.add(person)
-        person.set_i18n(dict(authorized_form_of_name=name), lang)        
+    def _get_or_create_authority(self, name, typeid, lang="en"):
+        """Find an authority with the given name, or create it
+        with the given type."""
+        try:
+            return self.session.query(models.Actor).join(
+                    models.ActorI18N, models.Actor.id==models.ActorI18N.id).filter(
+                            models.ActorI18N.authorized_form_of_name==name)\
+                    .one()
+        except NoResultFound:
+            person = models.Actor(entity_type_id=typeid, source_culture=lang,
+                parent=self.actorroot,
+                description_status=self.status,
+                description_detail=self.detail
+            )
+            self.session.add(person)
+            person.set_i18n(dict(authorized_form_of_name=name), lang)        
+            person.slug.append(models.Slug(slug=self.unique_slug(name)))
+            return person
 
-    def add_date(self, datestr, item, typeid, lang="en"):
+    def add_name_access(self, name, typeid, item, lang="en"):
+        """Add an associated name."""
+        person = self._get_or_create_authority(name, typeid, lang)
+        relation = models.Relation(subject=item, object=person, source_culture=lang,
+                type_id=keys.TermKeys.NAME_ACCESS_POINT_ID)
+        self.session.add(relation)
+
+    def _parse_dates(self, datestr):
+        """Coerce a date string into a dictionary of relevant
+        dates. If there are two dates assume them to be start-end."""
+        dates = split_multiple(datestr)
+        if len(dates) == 2:
+            d1 = parser.parse(dates[0], yearfirst=True)
+            d2 = parser.parse(dates[1], yearfirst=True)
+            if d2 > d1:
+                return [dict(start_date=d1, end_date=d2)]
+        # FIXME: Work out safer strategy for dealing with
+        # multiple dates.
+        outdates = []
+        for dstr in dates:
+            dobj = parse.parse(dstr, yearfirst=True)
+            outdates.append(dict(start_date=dobj, end_date=dobj))
+        return outdates
+
+    def add_dates(self, datestr, item, typeid, name=None, lang="en"):
         """Add a date as an event object."""
         if datestr.startswith("c"):
             datestr = datestr[1:]
+
+        actor = None
+        if name is not None:
+            actor = self._get_or_create_authority(name, keys.TermKeys.PERSON_ID, lang)
         # rely on the validator to check this doesn't explode
-        date = parser.parse(datestr, yearfirst=True)
-        event = models.Event(start_date=str(date), end_date=str(date),
-                type_id=typeid,
-                information_object_id=item.id,
-                source_culture=lang)
-        item.events.append(event)
-        # add a random slug for the event (this is really wrong
-        # but it's how qubit works...
-        event.slug.append(models.Slug(slug=self.random_slug()))            
+        for datedict in self._parse_dates(datestr):
+            event = models.Event(
+                    start_date=str(datedict["start_date"]),
+                    end_date=str(datedict["end_date"]),
+                    type_id=typeid,
+                    information_object_id=item.id,
+                    actor=actor,
+                    source_culture=lang)
+            item.events.append(event)
+            # add a random slug for the event (this is really wrong
+            # but it's how qubit works...
+            event.slug.append(models.Slug(slug=self.random_slug()))            
 
     def add_property(self, item, name, value, lang="en"):
         """Add a property to the object."""
@@ -246,7 +294,7 @@ class Repository(validators.Repository, XLSImporter):
         i18ndict = dict((k, v) for k, v in record.iteritems() \
                 if k in self.I18N)
         i18ndict.update(desc_revision_history=revision, desc_rules="ISDIAH",
-                desc_sources="\n".join(record["sources"].split(",,")))
+                desc_sources="\n".join(split_multiple(record["sources"])))
         repo.set_i18n(i18ndict, lang)
 
         # add a slug
@@ -272,8 +320,7 @@ class Repository(validators.Repository, XLSImporter):
         propdict = dict(language_of_description="languageOfDescription", 
                 script_of_description="scriptOfDescription")
         for name, prop in propdict.iteritems():
-            value = [v for v in record[name].split(",,") if v.strip() != ""]
-            self.add_property(repo, prop, value, lang)
+            self.add_property(repo, prop, split_multiple(record["name"]), lang)
 
         # handle ehri-specific metadata
         ehrimeta = dict(
@@ -312,7 +359,7 @@ class Repository(validators.Repository, XLSImporter):
         contacts = []
         for field in contact_fields:
             multival = record.get(field, "")
-            fieldvals = [c for c in cleanfloat(multival).split(",,") if c != ""]
+            fieldvals = split_multiple(cleanfloat(multival))
             for i in range(len(fieldvals)):                
                 if i + 1 > len(contacts):
                     contacts.append({})
@@ -390,12 +437,12 @@ class Collection(validators.Collection, XLSImporter):
         termdict = dict(subject_access=keys.TaxonomyKeys.SUBJECT_ID,
                 place_access=keys.TaxonomyKeys.PLACE_ID)
         for key, termid in termdict.iteritems():
-            vals = [v for v in record[key].split(",,") if v != ""]
-            for val in vals:
+            for val in split_multiple(record[key]):
                 self.add_term(val, info, termid, lang)
 
-        for val in [v for v in record["name_access"].split(",,") if v != ""]:
-            self.add_authority(val, keys.TermKeys.PERSON_ID, info, lang)
+        # add name access
+        for name in split_multiple(record["name_access"]):
+            self.add_name_access(name, keys.TermKeys.PERSON_ID, info, lang)
 
         # add a slug
         info.slug.append(models.Slug(slug=self.unique_slug(record["title"])))
@@ -412,10 +459,9 @@ class Collection(validators.Collection, XLSImporter):
         self.add_alt_names(info, record, "other_forms_of_title", 
                 keys.TermKeys.OTHER_FORM_OF_NAME_ID, lang)
 
-        # TODO: Work out a way on encoding date ranges in Excel
-        for field in self.DATES:
-            for datestr in [ds for ds in record[field].split(",,") if ds.strip() != ""]:
-                self.add_date(datestr, info, keys.TermKeys.CREATION_ID, lang)
+        # add creation dates
+        for name in split_multiple(record["creator"]):
+            self.add_dates(record["dates"], info, keys.TermKeys.CREATION_ID, name, lang)
 
         # add a publication status ID
         status = models.Status(object=info, 
@@ -429,8 +475,7 @@ class Collection(validators.Collection, XLSImporter):
                 script_of_description="scriptOfDescription"
         )
         for name, prop in propdict.iteritems():
-            values = [v for v in record[name].split(",,") if v.strip() != ""] 
-            self.add_property(info, prop, values, lang)
+            self.add_property(info, prop, split_multiple(record[name]), lang)
 
         # handle ehri-specific metadata
         ehrimeta = dict(
