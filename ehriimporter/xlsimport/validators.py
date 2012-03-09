@@ -34,7 +34,7 @@ def split_multiple(multistr, sep=",,"):
 class XLSField(object):
     def __init__(self, name, unique=False, multiple=False,
             default=None, required=False, date=False,
-            validate=False, i18n=False, type=None):
+            validate=False, i18n=False, type=None, help=None):
         self.name = name
         self.unique = unique
         self.multiple = multiple
@@ -44,6 +44,7 @@ class XLSField(object):
         self.validate = False
         self.type = type
         self.limit = None
+        self.help = help
 
     def __unicode__(self):
         return self.name

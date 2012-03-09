@@ -60,13 +60,15 @@
                 <th>Multiple values</th>
                 <th>Date format</th>
                 <th>Unique</th>
+                {#<th>Help</th>#}
             </tr>
-            {% for header in importer.fielddef.fields %}
+            {% for name, header in importer.fielddef.fields.items %}
             <tr>
                 <td>{{header}}</td>
-                <td>{% if header.multiple %}&#10003;{% endif %}</td>
-                <td>{% if header.isdate %}&#10003;{% endif %}</td>
+                <td>{% if header.multiple %}&#10003;{% if header.limit %} (max: {{header.limit}}){%endif%}{% endif %}</td>
+                <td>{% ifequal header.type "date" %}&#10003;{% endifequal %}</td>
                 <td>{% if header.unique %}&#10003;{% endif %}</td>
+                {#<td>{{ header.help|default_if_none:"" }}</td>#}
             </tr>
             {% endfor %}
         </table>
