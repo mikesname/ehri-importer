@@ -417,7 +417,7 @@ class Collection(validators.Collection, XLSImporter):
                 repoid))
 
         identifier = self.unique_identifier(models.InformationObject,
-                "c", repo.contacts[0].country_code)
+                "c", "", format="%09d")
         info = models.InformationObject(
             identifier=identifier,
             source_culture=lang,
