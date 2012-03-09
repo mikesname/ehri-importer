@@ -57,6 +57,7 @@ def deploy():
     install_requirements()
     symlink_current_release()
     activate_production_settings()
+    migrate()
     collectstatic()
     restart_webserver()
 
@@ -118,6 +119,12 @@ def activate_production_settings():
                 "shared/production_settings.py") 
         run("cp shared/production_settings.py releases/%(release)s/%(project_name)s/production_settings.py" % env)
 
+
+def migrate():
+    "Update the database"
+    with virtualenv():
+        with cd("%(path)s/releases/%(release)s/%(project_name)s" % env):
+            run('python manage.py syncdb --noinput')
 
 def collectstatic():
     "Save static files to serve location."
