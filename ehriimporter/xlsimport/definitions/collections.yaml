@@ -14,13 +14,15 @@ fields:
         multiple: true
         type: char
     - dates:
-         multiple: true
-         type: date
+        multiple: true
+        type: date
+        limit: 2
     - level_of_description:
-         default: Collection
+        default: Collection
     - extent_and_medium:
         i18n: true
     - creator:
+    - admin_biog_history:
     - acquisition:
         i18n: true
     - archival_history:
@@ -35,8 +37,10 @@ fields:
         i18n: true
     - location_of_originals:
         i18n: true
+        multiple: true
     - location_of_copies:
         i18n: true
+        multiple: true
     - publication_note:
     - notes:
     - subject_access:
