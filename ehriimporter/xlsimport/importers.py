@@ -1,6 +1,7 @@
 """Import XLS files into ICA Atom."""
 
 import re
+import sys
 import datetime
 from dateutil import parser
 from incf.countryutils import data as countrydata
@@ -35,8 +36,8 @@ def slugify(value):
     return SLUGIFY_HYPHENATE_RE.sub('-', value)
 
 
-def split_multiple(multistr, sep=",,"):
-    return [s for s in multistr.split(sep) if s.strip()]
+split_multiple = validators.split_multiple
+
 
 class XLSImportError(Exception):
     """Something went wrong with the import."""
@@ -111,13 +112,18 @@ class XLSImporter(object):
             # we hit a conflicting slug, so bump the suffix & try again
             suffix += 1
 
-    def unique_identifier(self, model, prefix, suffix, format="%d"):
+    def unique_identifier(self, model, prefix, suffix, format="%d", attr="identifier"):
         """Get an id based on an incremented index of the
         object count for the given model.  FIXME: Not very safe 
         or atomic."""
-        id = self.session.query(models.Object)\
-                .order_by("id DESC").limit(1).one().id
-        return (u"%s" + format + "%s") % (prefix, id + 1, suffix)
+        potid = self.session.query(model).count()
+        pattern = u"%s" + format + "%s"
+        while True:
+            potid += 1
+            potential = pattern % (prefix, potid, suffix)
+            if self.session.query(model).filter(getattr(model, attr)==potential)\
+                        .count() == 0:
+                return potential
 
     def import_xls(self, xlsfile):
         """Actually import the file."""
@@ -190,14 +196,20 @@ class XLSImporter(object):
                 object=item, term=term)
         self.session.add(relation)
 
-    def _get_or_create_authority(self, name, typeid, lang="en"):
+    def _get_or_create_authority(self, name, typeid, history=None, lang="en"):
         """Find an authority with the given name, or create it
         with the given type."""
         try:
-            return self.session.query(models.Actor).join(
+            person = self.session.query(models.Actor).join(
                     models.ActorI18N, models.Actor.id==models.ActorI18N.id).filter(
                             models.ActorI18N.authorized_form_of_name==name)\
                     .one()
+            if history:
+                if not person.get_i18n()["history"]:
+                    person.set_i18n(dict(history=history), lang)
+                else:
+                    sys.stderr.write("Found '%s' in authority records, not updating history\n." % name)
+            return person
         except NoResultFound:
             person = models.Actor(entity_type_id=typeid, source_culture=lang,
                 parent=self.actorroot,
@@ -205,55 +217,47 @@ class XLSImporter(object):
                 description_detail=self.detail
             )
             self.session.add(person)
-            person.set_i18n(dict(authorized_form_of_name=name), lang)        
+            person.set_i18n(dict(authorized_form_of_name=name, history=history), lang)
             person.slug.append(models.Slug(slug=self.unique_slug(name)))
             return person
 
     def add_name_access(self, name, typeid, item, lang="en"):
         """Add an associated name."""
-        person = self._get_or_create_authority(name, typeid, lang)
+        person = self._get_or_create_authority(name, typeid, history=None, lang=lang)
         relation = models.Relation(subject=item, object=person, source_culture=lang,
                 type_id=keys.TermKeys.NAME_ACCESS_POINT_ID)
         self.session.add(relation)
 
     def _parse_dates(self, datestr):
         """Coerce a date string into a dictionary of relevant
-        dates. If there are two dates assume them to be start-end."""
+        dates. If there are two dates assume them to be start->end."""
+        datedict = dict(start_date=None, end_date=None)
         dates = split_multiple(datestr)
-        if len(dates) == 2:
-            d1 = parser.parse(dates[0], yearfirst=True)
-            d2 = parser.parse(dates[1], yearfirst=True)
-            if d2 > d1:
-                return [dict(start_date=d1, end_date=d2)]
-        # FIXME: Work out safer strategy for dealing with
-        # multiple dates.
-        outdates = []
-        for dstr in dates:
-            dobj = parse.parse(dstr, yearfirst=True)
-            outdates.append(dict(start_date=dobj, end_date=dobj))
-        return outdates
+        if dates:
+            datedict["start_date"] = parser.parse(dates[0].replace("c", ""), 
+                        yearfirst=True,
+                        default=datetime.datetime(1900,1,1))
+        if len(dates) == 2:            
+            d2 = parser.parse(dates[1].replace("c", ""), 
+                        yearfirst=True,
+                        default=datetime.datetime(1900,12,31))
+            if d2 > datedict["start_date"]:
+                datedict["end_date"] = d2
+        return datedict
 
-    def add_dates(self, datestr, item, typeid, name=None, lang="en"):
+    def add_dates(self, datestr, item, typeid, name=None, history=None, lang="en"):
         """Add a date as an event object."""
-        if datestr.startswith("c"):
-            datestr = datestr[1:]
-
-        actor = None
+        datedict = self._parse_dates(datestr)
         if name is not None:
-            actor = self._get_or_create_authority(name, keys.TermKeys.PERSON_ID, lang)
+            datedict["actor"] = self._get_or_create_authority(name, 
+                            keys.TermKeys.PERSON_ID, history, lang)
+        datedict.update(information_object=item, source_culture=lang, type_id=typeid)
         # rely on the validator to check this doesn't explode
-        for datedict in self._parse_dates(datestr):
-            event = models.Event(
-                    start_date=str(datedict["start_date"]),
-                    end_date=str(datedict["end_date"]),
-                    type_id=typeid,
-                    information_object_id=item.id,
-                    actor=actor,
-                    source_culture=lang)
-            item.events.append(event)
-            # add a random slug for the event (this is really wrong
-            # but it's how qubit works...
-            event.slug.append(models.Slug(slug=self.random_slug()))            
+        event = models.Event(**datedict)
+        item.events.append(event)
+        # add a random slug for the event (this is really wrong
+        # but it's how qubit works...
+        event.slug.append(models.Slug(slug=self.random_slug()))            
 
     def add_property(self, item, name, value, lang="en"):
         """Add a property to the object."""
@@ -320,7 +324,7 @@ class Repository(validators.Repository, XLSImporter):
         propdict = dict(language_of_description="languageOfDescription", 
                 script_of_description="scriptOfDescription")
         for name, prop in propdict.iteritems():
-            self.add_property(repo, prop, split_multiple(record["name"]), lang)
+            self.add_property(repo, prop, split_multiple(record[name]), lang)
 
         # handle ehri-specific metadata
         ehrimeta = dict(
@@ -460,8 +464,8 @@ class Collection(validators.Collection, XLSImporter):
                 keys.TermKeys.OTHER_FORM_OF_NAME_ID, lang)
 
         # add creation dates
-        for name in split_multiple(record["creator"]):
-            self.add_dates(record["dates"], info, keys.TermKeys.CREATION_ID, name, lang)
+        self.add_dates(record["dates"], info, keys.TermKeys.CREATION_ID,
+                    record["creator"], record["admin_biog_history"], lang)
 
         # add a publication status ID
         status = models.Status(object=info, 
