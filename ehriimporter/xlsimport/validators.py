@@ -17,6 +17,7 @@ from xlsimport import utils
 class XLSError(Exception):
     """Something went wrong with XLS import."""
 
+MAX_CHARFIELD_LENGTH = 255
 
 ERROR_CODES = {
         u"bad_xls": u"Unable to open XLS file.",
@@ -24,6 +25,10 @@ ERROR_CODES = {
         u"unexpected_heading": u"Unexpected headings on worksheet",
         u"missing_heading": u"Heading not found on worksheet",
 }
+
+
+def split_multiple(multistr, sep=",,"):
+    return [s for s in multistr.split(sep) if s.strip()]
 
 
 class XLSField(object):
@@ -38,6 +43,7 @@ class XLSField(object):
         self.i18n = i18n
         self.validate = False
         self.type = type
+        self.limit = None
 
     def __unicode__(self):
         return self.name
@@ -83,6 +89,9 @@ class XLSSheetDefinition(object):
 
     def oftype(self, type):
         return [f for f in self.fields.values() if f.type==type]
+
+    def limited(self):
+        return [f for f in self.fields.values() if f.limit]
 
 
 class XLSValidator(object):
@@ -135,6 +144,10 @@ class XLSValidator(object):
     @property
     def I18N(self):
         return [f.name for f in self.fielddef.i18n()]
+
+    @property
+    def LIMITED(self):
+        return [f.name for f in self.fielddef.limited()]
 
     def open_xls(self, xlsfile):
         self.workbook = xlrd.open_workbook(xlsfile, formatting_info=True)
@@ -191,13 +204,12 @@ class XLSValidator(object):
         heads = [h.value for h in self.sheet.row_slice(self.HEADING_ROW, 0, numheads)]
         diffs = set(heads).difference(self.HEADINGS)
         err = ERROR_CODES["unexpected_heading"]
-        if "" not in diffs:
-            print diffs, heads, self.HEADINGS
+        if diffs:
             for diff in diffs:
                 self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
             raise XLSError(err)        
-        else:
-            diffs = set(self.HEADINGS).difference(heads)
+        diffs = set(self.HEADINGS).difference(heads)
+        if diffs:
             err = ERROR_CODES["missing_heading"]
             for diff in diffs:
                 self.add_error(self.HEADING_ROW, "%s: %s" % (err, diff))
@@ -207,10 +219,10 @@ class XLSValidator(object):
         """Check everything is A-Okay with the XLS data."""
         # These actions will stop any further validation
         # if they error
+        self.open_xls(xlspath)
         try:
-            self.open_xls(xlspath)
             self.validate_headers()
-        except Exception:
+        except XLSError:
             return
         self.check_unique_columns()
         self.check_required_columns()
@@ -221,6 +233,7 @@ class XLSValidator(object):
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
         self.check_multiples(rownum, rowdata)
+        self.check_limited(rownum, rowdata)
         self.check_dates(rownum, rowdata)
         self.check_charfield_length(rownum, rowdata)
 
@@ -266,24 +279,34 @@ class XLSValidator(object):
         """Check char fields aren't longer than 255 chars."""
         for field in self.CHARS:
             # just pretend everything's a multi-value
-            for item in rowdata.get(field, "").split(",,"):
-                if len(item) > 255:
+            for item in split_multiple(rowdata.get(field, "")):
+                if len(item) > MAX_CHARFIELD_LENGTH:
                     self.add_error(rownum, "Field over 255 characters: '%s'" % field)
 
     def check_multiples(self, rownum, rowdata):
         """Check fields that only allow single entries don't
         contain multiple ones."""
         for i, (key, val) in enumerate(rowdata.iteritems()):
-            multi = unicode(val).split(",,")
-            if len(multi) > 1 and key not in self.MULTIPLES:
+            if len(split_multiple(unicode(val))) > 1 and key not in self.MULTIPLES:
                 self.add_error(rownum, 
                         "Double-comma separator in a strictly single-value field: '%s'" % key)
+
+    def check_limited(self, rownum, rowdata):
+        """Check multiple entries with a limit don't exceed
+        that limit."""
+        for field in self.MULTIPLES:
+            if field in self.LIMITED:
+                fmax = self.fielddef.fields[field].limit
+                if len(split_multiple(rowdata[field])) > fmax:
+                    self.add_error(rownum,
+                            "Multiple-value field exceeds value limit: '%s' (limit %d)" % (
+                                field, fmax))
 
     def check_dates(self, rownum, rowdata):
         """Check dates are in YYYY-MM-DD format.  A preceding 'c' for
         'circa' is allowed to indicate inexactness."""
         for field in self.DATES:
-            for datestr in [ds for ds in rowdata[field].split(",,") if ds.strip() != ""]:
+            for datestr in split_multiple(rowdata[field]):
                 if datestr.startswith("c"):
                     datestr = datestr[1:]
                 try:
@@ -325,6 +348,7 @@ class Collection(XLSValidator):
     def validate_row(self, rownum, rowdata):
         """Check a single row of data."""
         super(Collection, self).validate_row(rownum, rowdata)
+
 
 
 VALIDATORS = [Repository, Collection]
