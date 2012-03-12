@@ -410,7 +410,7 @@ class Collection(validators.Collection, XLSImporter):
         # get the repo and let it error if not found
         try:
             repo = self.session.query(models.Repository)\
-                    .filter(models.Repository.identifier==repoid)\
+                    .filter(models.Repository.id==repoid)\
                     .one()
         except NoResultFound:
             raise XLSImportError("Unable to find repository with identifier: %s" % (
