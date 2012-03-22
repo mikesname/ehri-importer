@@ -143,6 +143,10 @@ class XLSValidator(object):
         return [f.name for f in self.fielddef.oftype("contact")]
 
     @property
+    def PERSONNAMES(self):
+        return [f.name for f in self.fielddef.oftype("personname")]
+
+    @property
     def I18N(self):
         return [f.name for f in self.fielddef.i18n()]
 
@@ -235,6 +239,7 @@ class XLSValidator(object):
         """Check a single row of data."""
         self.check_multiples(rownum, rowdata)
         self.check_limited(rownum, rowdata)
+        self.check_person_names(rownum, rowdata)
         self.check_dates(rownum, rowdata)
         self.check_charfield_length(rownum, rowdata)
 
@@ -247,7 +252,7 @@ class XLSValidator(object):
                     enumerate(self.sheet.col_slice(
                         col, self.HEADING_ROW, self.sheet.nrows))]
             for i, data in rowsdata:
-                if data is None or data.strip() == "":
+                if data is None or str(data).strip() == "":
                     self.add_error(i, "Missing value on required column: %s" % (
                         colhead))
 
@@ -302,6 +307,12 @@ class XLSValidator(object):
                     self.add_error(rownum,
                             "Multiple-value field exceeds value limit: '%s' (limit %d)" % (
                                 field, fmax))
+
+    def check_person_names(self, rownum, rowdata):
+        for field in self.PERSONNAMES:
+            for item in split_multiple(rowdata.get(field, "")):
+                if "," not in item:
+                    self.add_error(rownum, "No 'comma' delimiting surname/given name in person name field '%s'" % field)
 
     def check_dates(self, rownum, rowdata):
         """Check dates are in YYYY-MM-DD format.  A preceding 'c' for

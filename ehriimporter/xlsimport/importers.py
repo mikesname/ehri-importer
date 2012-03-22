@@ -249,7 +249,7 @@ class XLSImporter(object):
         """Add a date as an event object."""
         datedict = self._parse_dates(datestr)
         if name is not None:
-            datedict["actor"] = self._get_or_create_authority(name, 
+            datedict["actor"] = self._get_or_create_authority(name,
                             keys.TermKeys.PERSON_ID, history, lang)
         datedict.update(information_object=item, source_culture=lang, type_id=typeid)
         # rely on the validator to check this doesn't explode
@@ -465,7 +465,7 @@ class Collection(validators.Collection, XLSImporter):
 
         # add creation dates
         self.add_dates(record["dates"], info, keys.TermKeys.CREATION_ID,
-                    record["creator"], record["admin_biog_history"], lang)
+                    record["creator"], record["biographical_history"], lang)
 
         # add a publication status ID
         status = models.Status(object=info, 

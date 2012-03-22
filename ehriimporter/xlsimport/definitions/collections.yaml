@@ -22,7 +22,8 @@ fields:
     - extent_and_medium:
         i18n: true
     - creator:
-    - admin_biog_history:
+        type: personname
+    - biographical_history:
     - acquisition:
         i18n: true
     - archival_history:
@@ -49,6 +50,7 @@ fields:
         multiple: true        
     - name_access:
         multiple: true
+        type: personname
     - rules:
     - dates_of_administration:
         multiple: true
