@@ -311,8 +311,11 @@ class XLSValidator(object):
     def check_person_names(self, rownum, rowdata):
         for field in self.PERSONNAMES:
             for item in split_multiple(rowdata.get(field, "")):
-                if "," not in item:
-                    self.add_error(rownum, "No 'comma' delimiting surname/given name in person name field '%s'" % field)
+                if item.count(",") < 1:
+                    self.add_error(rownum, "No 'comma' delimiting surname/given name in person name field '%s': '%s'" %
+                            (field, item))
+                elif item.count(",") > 1:
+                    self.add_error(rownum, "Multiple 'commas' in name field '%s': '%s'" % (field, item))
 
     def check_dates(self, rownum, rowdata):
         """Check dates are in YYYY-MM-DD format.  A preceding 'c' for
