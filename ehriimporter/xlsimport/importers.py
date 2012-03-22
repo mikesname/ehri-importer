@@ -199,6 +199,7 @@ class XLSImporter(object):
     def _get_or_create_authority(self, name, typeid, history=None, lang="en"):
         """Find an authority with the given name, or create it
         with the given type."""
+        name = name.rstrip(",")
         try:
             person = self.session.query(models.Actor).join(
                     models.ActorI18N, models.Actor.id==models.ActorI18N.id).filter(

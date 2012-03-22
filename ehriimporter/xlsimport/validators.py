@@ -28,7 +28,7 @@ ERROR_CODES = {
 
 
 def split_multiple(multistr, sep=",,"):
-    return [s for s in multistr.split(sep) if s.strip()]
+    return [s for s in multistr.rsplit(sep) if s.strip()]
 
 
 class XLSField(object):
