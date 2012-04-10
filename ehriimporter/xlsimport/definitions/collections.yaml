@@ -72,5 +72,8 @@ fields:
         multiple: true
     - archivist_note:
     - ehri_scope:
+        choices: [~, "high", "medium", "low"]
     - ehri_priority:
+        choices: [~, 1, 2, 3, 4, 5]
     - ehri_copyright:
+        choices: [~, "yes", "no"]
