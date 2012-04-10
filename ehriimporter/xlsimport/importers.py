@@ -45,9 +45,9 @@ class XLSImportError(Exception):
 
 class XLSImporter(object):
     """Base class for repository importer."""
-    def __init__(self, database=None, username=None, 
+    def __init__(self, database=None, username=None,
                 password=None, hostname="localhost", port=None, atomuser=None,
-                rowfunc=None, donefunc=None): 
+                rowfunc=None, donefunc=None):
         engine = create_engine(URL("mysql",
             username=username,
             password=password,
@@ -55,7 +55,7 @@ class XLSImporter(object):
             database=database,
             port=port,
             query=dict(
-                charset="utf8", 
+                charset="utf8",
                 use_unicode=0
             )
         ))
@@ -114,7 +114,7 @@ class XLSImporter(object):
 
     def unique_identifier(self, model, prefix, suffix, format="%d", attr="identifier"):
         """Get an id based on an incremented index of the
-        object count for the given model.  FIXME: Not very safe 
+        object count for the given model.  FIXME: Not very safe
         or atomic."""
         potid = self.session.query(model).count()
         pattern = u"%s" + format + "%s"
@@ -156,7 +156,7 @@ class XLSImporter(object):
         pass
 
     def add_note(self, item, record, field, typekey, scope, lang="en"):
-        """Add a note record with the given type id, i.e. 
+        """Add a note record with the given type id, i.e.
         ARCHIVIST_NOTE_ID, MAINTENANCE_NOTE_ID."""
         text = record[field].strip()
         if text:
@@ -232,33 +232,41 @@ class XLSImporter(object):
     def _parse_dates(self, datestr):
         """Coerce a date string into a dictionary of relevant
         dates. If there are two dates assume them to be start->end."""
-        datedict = dict(start_date=None, end_date=None)
+        datedict = dict()
         dates = split_multiple(datestr)
         if dates:
-            datedict["start_date"] = parser.parse(dates[0].replace("c", ""), 
+            print dates
+            datedict["start_date"] = parser.parse(dates[0].replace("c", "").replace(".0", ""),
                         yearfirst=True,
                         default=datetime.datetime(1900,1,1))
-        if len(dates) == 2:            
-            d2 = parser.parse(dates[1].replace("c", ""), 
+        if len(dates) == 2:
+            d2 = parser.parse(dates[1].replace("c", "").replace(".0", ""),
                         yearfirst=True,
                         default=datetime.datetime(1900,12,31))
             if d2 > datedict["start_date"]:
                 datedict["end_date"] = d2
-        return datedict
+        # NB: Hack, converting dates to isoformat to work around
+        # bug in MySQLdb module that doesn't handle dates < 1900.
+        # Using a string works, however...
+        return dict((k, v.isoformat()) for k, v in datedict.items())
 
     def add_dates(self, datestr, item, typeid, name=None, history=None, lang="en"):
         """Add a date as an event object."""
         datedict = self._parse_dates(datestr)
         if name is not None:
-            datedict["actor"] = self._get_or_create_authority(name,
-                            keys.TermKeys.PERSON_ID, history, lang)
+            ctypeid = keys.TermKeys.PERSON_ID
+            if name.startswith("[org] "):
+                name = name.replace("[org] ", "")
+                ctypeid = keys.TermKeys.CORPORATE_BODY_ID
+            datedict["actor"] = self._get_or_create_authority(
+                    name, ctypeid, history, lang)
         datedict.update(information_object=item, source_culture=lang, type_id=typeid)
         # rely on the validator to check this doesn't explode
         event = models.Event(**datedict)
         item.events.append(event)
         # add a random slug for the event (this is really wrong
         # but it's how qubit works...
-        event.slug.append(models.Slug(slug=self.random_slug()))            
+        event.slug.append(models.Slug(slug=self.random_slug()))
 
     def add_property(self, item, name, value, lang="en"):
         """Add a property to the object."""
@@ -270,7 +278,7 @@ class XLSImporter(object):
 
 class Repository(validators.Repository, XLSImporter):
     """Import repository information."""
-    def __init__(self, *args, **kwargs):    
+    def __init__(self, *args, **kwargs):
         XLSImporter.__init__(self, *args, **kwargs)
         validators.Repository.__init__(self)
         self.parent = self.session.query(models.Actor)\
@@ -306,8 +314,8 @@ class Repository(validators.Repository, XLSImporter):
         repo.slug.append(models.Slug(slug=self.unique_slug(name)))
 
         # add a note
-        self.add_note(repo, record, "notes", 
-                keys.TermKeys.MAINTENANCE_NOTE_ID, 
+        self.add_note(repo, record, "notes",
+                keys.TermKeys.MAINTENANCE_NOTE_ID,
                 "QubitRepository", lang)
 
         # add other & parallel names, with the correct Term ID.
@@ -322,7 +330,7 @@ class Repository(validators.Repository, XLSImporter):
         self.add_addresses(repo, record, code, lang)
 
         # add various properties...
-        propdict = dict(language_of_description="languageOfDescription", 
+        propdict = dict(language_of_description="languageOfDescription",
                 script_of_description="scriptOfDescription")
         for name, prop in propdict.iteritems():
             self.add_property(repo, prop, split_multiple(record[name]), lang)
@@ -340,7 +348,7 @@ class Repository(validators.Repository, XLSImporter):
         institutions could potentially have more than one address,
         although in practise it's likely to be just email/phone that
         we have more than one of.  Cue ugly hacks."""
-        # oh god this makes me want to cry... 
+        # oh god this makes me want to cry...
         def cleanfloat(f):
             if isinstance(f, float):
                 return unicode(int(f))
@@ -356,7 +364,7 @@ class Repository(validators.Repository, XLSImporter):
                     city=record["city"],
                     region=record["region"],
                     note="Import from EHRI contact spreadsheet"
-            ), lang) 
+            ), lang)
 
         # some fields can have multiple values, which we need
         # to stick in a secondary contact model
@@ -365,7 +373,7 @@ class Repository(validators.Repository, XLSImporter):
         for field in contact_fields:
             multival = record.get(field, "")
             fieldvals = split_multiple(cleanfloat(multival))
-            for i in range(len(fieldvals)):                
+            for i in range(len(fieldvals)):
                 if i + 1 > len(contacts):
                     contacts.append({})
                 contacts[i][field] = fieldvals[i]
@@ -381,7 +389,7 @@ class Repository(validators.Repository, XLSImporter):
 
 class Collection(validators.Collection, XLSImporter):
     """Import repository information."""
-    def __init__(self, *args, **kwargs):    
+    def __init__(self, *args, **kwargs):
         XLSImporter.__init__(self, *args, **kwargs)
         validators.Collection.__init__(self)
 
@@ -461,7 +469,7 @@ class Collection(validators.Collection, XLSImporter):
         for name, key in notedict.iteritems():
             self.add_note(info, record, name, key, "InformationObject", lang)
 
-        self.add_alt_names(info, record, "other_forms_of_title", 
+        self.add_alt_names(info, record, "other_forms_of_title",
                 keys.TermKeys.OTHER_FORM_OF_NAME_ID, lang)
 
         # add creation dates
@@ -469,7 +477,7 @@ class Collection(validators.Collection, XLSImporter):
                     record["creator"], record["biographical_history"], lang)
 
         # add a publication status ID
-        status = models.Status(object=info, 
+        status = models.Status(object=info,
                 type_id=self.pubtype.id, status_id=self.pubstatus.id)
         self.session.add(status)
 
