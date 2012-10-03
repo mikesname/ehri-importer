@@ -9,10 +9,10 @@ fields:
         unique: true
         i18n: true
         type: char
-    - other_forms_of_name:
+    - parallel_forms_of_name:
         multiple: true
         type: char
-    - parallel_forms_of_name:
+    - other_forms_of_name:
         multiple: true
         type: char
     - entity_type:
